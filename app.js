@@ -35,14 +35,7 @@ function setLanguages(text) {
 function providerConfig() { return configs[provider]; }
 function currentModel() {
   const config = providerConfig();
-  const savedModel = localStorage.getItem(config.modelKey);
-  if ((provider === 'openai' && savedModel === 'gpt-4.1-mini') ||
-      (provider === 'anthropic' && (savedModel === 'claude-sonnet-4-20250514' || savedModel === 'claude-opus-5')) ||
-      (provider === 'gemini' && (savedModel === 'gemini-2.0-flash' || savedModel === 'gemini-3.5-flash'))) {
-    localStorage.setItem(config.modelKey, config.model);
-    return config.model;
-  }
-  return savedModel || config.model;
+  return localStorage.getItem(config.modelKey) || config.model;
 }
 
 function setProvider(next) {
