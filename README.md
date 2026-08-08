@@ -30,7 +30,7 @@ ChatGPT、Claude、Gemini を切り替えて使える、日本語・英語向け
 | サービス | 初期モデル |
 | --- | --- |
 | ChatGPT | `gpt-5.6-luna` |
-| Claude | `claude-haiku-4-5-20251001` |
+| Claude | `claude-haiku-4-5` |
 | Gemini | `gemini-3.5-flash-lite` |
 
 ## APIキーについて

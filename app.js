@@ -1,6 +1,6 @@
 const configs = {
   openai: { name: 'ChatGPT', model: 'gpt-5.6-luna', key: 'lingo-openai-key', modelKey: 'lingo-openai-model' },
-  anthropic: { name: 'Claude', model: 'claude-haiku-4-5-20251001', key: 'lingo-anthropic-key', modelKey: 'lingo-anthropic-model' },
+  anthropic: { name: 'Claude', model: 'claude-haiku-4-5', key: 'lingo-anthropic-key', modelKey: 'lingo-anthropic-model' },
   gemini: { name: 'Gemini', model: 'gemini-3.5-flash-lite', key: 'lingo-gemini-key', modelKey: 'lingo-gemini-model' }
 };
 
