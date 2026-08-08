@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#101416" />
+    <title>MyLingo — AI Translator</title>
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="MyLingo home">
+          <span class="brand-mark"><i></i><i></i><i></i></span>
+          <span>MyLingo</span>
+        </a>
+
+        <div class="provider-switcher" role="tablist" aria-label="AI model provider">
+          <button class="provider active" data-provider="openai" role="tab" aria-selected="true">
+            <span class="provider-orb openai">✦</span>ChatGPT
+          </button>
+          <button class="provider" data-provider="anthropic" role="tab" aria-selected="false">
+            <span class="provider-orb anthropic">A</span>Claude
+          </button>
+          <button class="provider" data-provider="gemini" role="tab" aria-selected="false">
+            <span class="provider-orb gemini">✧</span>Gemini
+          </button>
+        </div>
+
+        <button class="icon-button settings-trigger" aria-label="設定を開く" title="設定">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.25a3.75 3.75 0 1 0 0 7.5 3.75 3.75 0 0 0 0-7.5Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.8 1.8-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V20h-2.55v-.08A1.7 1.7 0 0 0 11.45 18.36a1.7 1.7 0 0 0-1.88.34l-.06.06-1.8-1.8.06-.06A1.7 1.7 0 0 0 8.1 15a1.7 1.7 0 0 0-1.56-1.03h-.08v-2.55h.08A1.7 1.7 0 0 0 8.1 10.4a1.7 1.7 0 0 0-.34-1.88L7.7 8.46l1.8-1.8.06.06a1.7 1.7 0 0 0 1.88.34 1.7 1.7 0 0 0 1.03-1.56v-.08h2.55v.08a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06 1.8 1.8-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.56 1.03h.08v2.55h-.08A1.7 1.7 0 0 0 19.4 15Z"/></svg>
+        </button>
+      </header>
+
+      <section class="workspace" aria-label="翻訳ワークスペース">
+        <div class="language-strip">
+          <div class="language source-language"><span class="status-dot"></span><span id="sourceLang">言語を自動判別</span></div>
+          <button class="swap-button" id="swapButton" aria-label="翻訳結果を入力欄に入れ替え" title="翻訳結果を左側にコピー">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h11M14.5 3.5 18 7l-3.5 3.5M17 17H6M9.5 20.5 6 17l3.5-3.5"/></svg>
+          </button>
+          <div class="language target-language"><span id="targetLang">英語</span><span class="chevron">⌄</span></div>
+        </div>
+
+        <div class="panes">
+          <section class="pane input-pane">
+            <div class="pane-head"><span>原文</span><button id="clearButton" class="text-button">クリア</button></div>
+            <textarea id="sourceText" placeholder="翻訳したいテキストを入力" autofocus></textarea>
+            <div class="pane-footer"><span id="characterCount">0 文字</span><button class="copy-button" data-copy="sourceText" aria-label="原文をコピー"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="12" rx="2"/><path d="M5 16V6a2 2 0 0 1 2-2h9"/></svg></button></div>
+          </section>
+
+          <section class="pane output-pane">
+            <div class="pane-head"><span>翻訳</span><span class="model-label" id="modelLabel">ChatGPT</span></div>
+            <div id="translation" class="translation" aria-live="polite">
+              <div class="empty-state"><span class="empty-star">✦</span><p>ここに翻訳が表示されます</p></div>
+            </div>
+            <div class="pane-footer"><span id="translationStatus">準備完了</span><button class="copy-button" data-copy="translation" aria-label="翻訳をコピー"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="12" rx="2"/><path d="M5 16V6a2 2 0 0 1 2-2h9"/></svg></button></div>
+          </section>
+        </div>
+      </section>
+
+      <footer><span><i></i> 日本語と英語を自動判別して翻訳します</span><span>⌘ + Enter で翻訳</span></footer>
+    </main>
+
+    <aside class="settings-panel" id="settingsPanel" aria-hidden="true">
+      <div class="settings-head"><div><p class="eyebrow">LOCAL SETTINGS</p><h2>接続設定</h2></div><button class="icon-button close-settings" aria-label="設定を閉じる">×</button></div>
+      <p class="settings-description">選択中のAIサービスのAPIキーを入力してください。キーはこのブラウザ内にのみ保存されます。</p>
+      <label class="field-label" for="apiKey">API キー <span id="keyProvider">ChatGPT</span></label>
+      <div class="key-field"><input id="apiKey" type="password" autocomplete="off" placeholder="API key を貼り付け"/><button id="toggleKey" aria-label="APIキーを表示">表示</button></div>
+      <label class="field-label" for="modelInput">モデル</label>
+      <input id="modelInput" class="model-input" type="text" />
+      <button id="saveSettings" class="save-button">保存する</button>
+      <p class="security-note">このアプリはサーバーを経由しないため、APIキーはご自身の端末から各サービスへ直接送信されます。</p>
+    </aside>
+    <div id="scrim" class="scrim"></div>
+    <div id="toast" class="toast" role="status"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
