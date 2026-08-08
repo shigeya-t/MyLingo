@@ -53,7 +53,19 @@
 
         <div class="panes">
           <section class="pane input-pane">
-            <div class="pane-head"><span>原文</span><button id="clearButton" class="text-button">クリア</button></div>
+            <div class="pane-head">
+              <div class="pane-head-left">
+                <span>原文</span>
+                <select id="modeSelect" class="mode-select" aria-label="翻訳モード">
+                  <option value="faithful">原文に忠実</option>
+                  <option value="natural">ネイティブらしい自然な訳</option>
+                  <option value="business">ビジネス文書向け</option>
+                  <option value="casual">会話・SNS向け</option>
+                  <option value="technical">技術文書向け</option>
+                </select>
+              </div>
+              <button id="clearButton" class="text-button">クリア</button>
+            </div>
             <textarea id="sourceText" placeholder="翻訳したいテキストを入力" autofocus></textarea>
             <div class="pane-footer"><span id="characterCount">0 文字</span><button class="copy-button" data-copy="sourceText" aria-label="原文をコピー"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="12" rx="2"/><path d="M5 16V6a2 2 0 0 1 2-2h9"/></svg></button></div>
           </section>

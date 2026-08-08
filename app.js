@@ -4,7 +4,16 @@ const configs = {
   gemini: { name: 'Gemini', model: 'gemini-3.5-flash-lite', key: 'lingo-gemini-key', modelKey: 'lingo-gemini-model' }
 };
 
+const translationModes = {
+  faithful: 'Translate as literally and faithfully as possible, staying close to the original sentence structure and word choice without paraphrasing or adding stylistic flourishes.',
+  natural: 'Translate so it reads naturally and fluently, as if originally written by a native speaker. Prioritize natural phrasing over literal wording.',
+  business: 'Translate using formal, professional business language suitable for corporate documents, emails, and official correspondence.',
+  casual: 'Translate using casual, conversational language suitable for everyday chat messages and social media posts.',
+  technical: 'Translate using precise technical terminology suitable for technical documentation, keeping domain-specific terms accurate and consistent.'
+};
+
 let provider = localStorage.getItem('lingo-provider') || 'openai';
+let mode = localStorage.getItem('lingo-mode') || 'faithful';
 let timer;
 const $ = (selector) => document.querySelector(selector);
 const source = $('#sourceText'), translation = $('#translation');
@@ -60,7 +69,7 @@ function outputEmpty() {
 
 function systemPrompt(sourceLanguage) {
   const target = sourceLanguage === 'ja' ? 'English' : 'Japanese';
-  return `You are a precise translation engine. Translate the input from ${sourceLanguage === 'ja' ? 'Japanese' : 'English'} to ${target}. Return only the translation. Preserve line breaks, tone, and formatting. Do not add explanations, labels, quotation marks, or notes.`;
+  return `You are a precise translation engine. Translate the input from ${sourceLanguage === 'ja' ? 'Japanese' : 'English'} to ${target}. ${translationModes[mode]} Return only the translation. Preserve line breaks and formatting. Do not add explanations, labels, quotation marks, or notes.`;
 }
 
 function friendlyApiError(status, message) {
@@ -160,5 +169,7 @@ $('.settings-trigger').addEventListener('click', openSettings); $('.close-settin
 $('#toggleKey').addEventListener('click', () => { const isPassword = $('#apiKey').type === 'password'; $('#apiKey').type = isPassword ? 'text' : 'password'; $('#toggleKey').textContent = isPassword ? '隠す' : '表示'; });
 $('#saveSettings').addEventListener('click', () => { const config = providerConfig(); localStorage.setItem(config.key, $('#apiKey').value.trim()); localStorage.setItem(config.modelKey, $('#modelInput').value.trim() || config.model); closeSettings(); toast(`${config.name} の設定を保存しました`); if (source.value.trim()) scheduleTranslation(); });
 $('#themeToggle').addEventListener('click', () => { const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light'; localStorage.setItem('lingo-theme', next); applyTheme(next); });
+$('#modeSelect').addEventListener('change', () => { mode = $('#modeSelect').value; localStorage.setItem('lingo-mode', mode); if (source.value.trim()) scheduleTranslation(); });
+$('#modeSelect').value = mode;
 setProvider(provider);
 initTheme();
