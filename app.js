@@ -9,6 +9,17 @@ let timer;
 const $ = (selector) => document.querySelector(selector);
 const source = $('#sourceText'), translation = $('#translation');
 
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  $('#themeToggle').setAttribute('aria-pressed', theme === 'light');
+  $('meta[name="theme-color"]').setAttribute('content', theme === 'light' ? '#f5f6f2' : '#101416');
+}
+
+function initTheme() {
+  const stored = localStorage.getItem('lingo-theme');
+  applyTheme(stored || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
+}
+
 function detectLanguage(text) {
   // Japanese kana / CJK characters are a reliable lightweight detector for this two-language tool.
   return /[\u3040-\u30ff\u3400-\u9faf]/.test(text) ? 'ja' : 'en';
@@ -155,4 +166,6 @@ document.querySelectorAll('[data-copy]').forEach((button) => button.addEventList
 $('.settings-trigger').addEventListener('click', openSettings); $('.close-settings').addEventListener('click', closeSettings); $('#scrim').addEventListener('click', closeSettings);
 $('#toggleKey').addEventListener('click', () => { const isPassword = $('#apiKey').type === 'password'; $('#apiKey').type = isPassword ? 'text' : 'password'; $('#toggleKey').textContent = isPassword ? '隠す' : '表示'; });
 $('#saveSettings').addEventListener('click', () => { const config = providerConfig(); localStorage.setItem(config.key, $('#apiKey').value.trim()); localStorage.setItem(config.modelKey, $('#modelInput').value.trim() || config.model); closeSettings(); toast(`${config.name} の設定を保存しました`); if (source.value.trim()) scheduleTranslation(); });
+$('#themeToggle').addEventListener('click', () => { const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light'; localStorage.setItem('lingo-theme', next); applyTheme(next); });
 setProvider(provider);
+initTheme();
