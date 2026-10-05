@@ -12,7 +12,12 @@ if (!window.__myLingoLoaded) {
   let seen = new WeakSet(); // Nodes already queued, so dynamic content is not translated twice.
   let state = { status: 'idle', done: 0, total: 0, error: '', target: '' };
   let generation = 0; // Bumped on restore so late replies are ignored.
-  let observer = null;
+  let observer = null; // MutationObserver for content added after translation starts.
+  let visibility = null; // IntersectionObserver for text approaching the viewport.
+  const nodesByElement = new Map(); // Element -> text nodes waiting for it to come into view.
+  let queue = []; // Text nodes in view, waiting to be sent.
+  let inFlight = 0;
+  let pumpTimer = null;
   let pendingNodes = [];
   let observerTimer = null;
   let bubbleHost = null;
@@ -64,19 +69,65 @@ if (!window.__myLingoLoaded) {
     return nodes;
   }
 
-  function makeBatches(nodes) {
-    const batches = [];
-    let batch = [], size = 0;
+  // Only text near the viewport is translated. Elements are watched with an
+  // IntersectionObserver and queued when they scroll within this margin.
+  const VIEWPORT_MARGIN = '50% 0px';
+
+  function watchNodes(nodes) {
     for (const node of nodes) {
-      const length = node.data.trim().length;
-      if (batch.length && (size + length > BATCH_CHARS || batch.length >= BATCH_SEGMENTS)) {
-        batches.push(batch);
-        batch = []; size = 0;
+      seen.add(node);
+      const element = node.parentElement;
+      if (!nodesByElement.has(element)) {
+        nodesByElement.set(element, []);
+        visibility.observe(element);
       }
+      nodesByElement.get(element).push(node);
+    }
+  }
+
+  function onVisibility(entries) {
+    let added = 0;
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      visibility.unobserve(entry.target);
+      const nodes = nodesByElement.get(entry.target) || [];
+      nodesByElement.delete(entry.target);
+      queue.push(...nodes);
+      added += nodes.length;
+    }
+    if (added) setState({ total: state.total + added });
+    schedulePump();
+  }
+
+  function schedulePump() {
+    clearTimeout(pumpTimer);
+    pumpTimer = setTimeout(pump, 120);
+  }
+
+  function distanceFromViewport(node) {
+    const rect = node.parentElement?.getBoundingClientRect();
+    if (!rect) return Infinity;
+    if (rect.bottom < 0) return -rect.bottom;
+    if (rect.top > window.innerHeight) return rect.top - window.innerHeight;
+    return 0;
+  }
+
+  // Picks the queued segments closest to what the user is looking at right
+  // now, so fast scrolling never leaves the visible area waiting behind text
+  // that has already scrolled away.
+  function takeBatch() {
+    const distances = new Map(queue.filter((node) => node.isConnected).map((node) => [node, distanceFromViewport(node)]));
+    const sorted = [...distances.keys()].sort((a, b) => distances.get(a) - distances.get(b));
+    const batch = [];
+    let size = 0;
+    for (const node of sorted) {
+      const length = node.data.trim().length;
+      if (batch.length && (size + length > BATCH_CHARS || batch.length >= BATCH_SEGMENTS)) break;
       batch.push(node); size += length;
     }
-    if (batch.length) batches.push(batch);
-    return batches;
+    queue = sorted.slice(batch.length);
+    // Document order inside a batch lets adjacent fragments give each other context.
+    return batch.sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
   }
 
   function applyTranslation(node, translated) {
@@ -87,34 +138,28 @@ if (!window.__myLingoLoaded) {
     node.data = leading + translated.trim() + trailing;
   }
 
-  async function translateNodes(nodes) {
-    if (!nodes.length) return;
-    const run = generation;
-    nodes.forEach((node) => seen.add(node));
-    const batches = makeBatches(nodes);
-    setState({ status: 'translating', total: state.total + nodes.length, error: '' });
-    let next = 0;
-    const worker = async () => {
-      while (next < batches.length && run === generation) {
-        const batch = batches[next++];
-        const response = await chrome.runtime.sendMessage({ type: 'translateSegments', segments: batch.map((node) => node.data.trim()), target: state.target });
-        if (run !== generation) return;
-        if (response?.error) throw new Error(response.error);
-        batch.forEach((node, index) => applyTranslation(node, response.translations[index]));
-        setState({ done: state.done + batch.length });
-      }
-    };
-    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, batches.length) }, worker));
+  function pump() {
+    if (!visibility) return;
+    while (inFlight < CONCURRENCY && queue.length) sendBatch(takeBatch());
+    const status = inFlight || queue.length ? 'translating' : 'translated';
+    if (state.status !== status) setState({ status });
   }
 
-  async function runTranslation(nodes) {
+  async function sendBatch(batch) {
+    if (!batch.length) return;
     const run = generation;
+    inFlight++;
     try {
-      await translateNodes(nodes);
-      if (run === generation) setState({ status: 'translated' });
+      const response = await chrome.runtime.sendMessage({ type: 'translateSegments', segments: batch.map((node) => node.data.trim()), target: state.target });
+      if (run !== generation) return;
+      if (response?.error) throw new Error(response.error);
+      batch.forEach((node, index) => applyTranslation(node, response.translations[index]));
+      inFlight--;
+      setState({ done: state.done + batch.length });
+      pump();
     } catch (error) {
       if (run !== generation) return;
-      stopObserver();
+      stopWatching();
       setState({ status: 'error', error: error.message });
     }
   }
@@ -128,18 +173,23 @@ if (!window.__myLingoLoaded) {
       clearTimeout(observerTimer);
       observerTimer = setTimeout(() => {
         const roots = pendingNodes; pendingNodes = [];
-        const nodes = roots.flatMap((root) => (root.isConnected ? collectTextNodes(root, state.target) : []));
-        if (nodes.length && state.status !== 'error') runTranslation(nodes);
-      }, 800);
+        if (visibility) watchNodes(roots.flatMap((root) => (root.isConnected ? collectTextNodes(root, state.target) : [])));
+      }, 300);
     });
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
-  function stopObserver() {
+  function stopWatching() {
     observer?.disconnect();
     observer = null;
     clearTimeout(observerTimer);
     pendingNodes = [];
+    visibility?.disconnect();
+    visibility = null;
+    nodesByElement.clear();
+    queue = [];
+    inFlight = 0;
+    clearTimeout(pumpTimer);
   }
 
   async function translatePage() {
@@ -148,19 +198,16 @@ if (!window.__myLingoLoaded) {
     const target = settings.target === 'auto' ? detectPageTarget() : settings.target;
     seen = new WeakSet(); // Lets a retry after an error pick up segments that failed.
     setState({ status: 'translating', done: 0, total: 0, error: '', target });
-    const nodes = collectTextNodes(document.body, target);
-    if (!nodes.length) {
-      setState({ status: 'translated' });
-      return state;
-    }
+    visibility = new IntersectionObserver(onVisibility, { rootMargin: VIEWPORT_MARGIN });
+    watchNodes(collectTextNodes(document.body, target));
     startObserver();
-    runTranslation(nodes);
+    schedulePump();
     return state;
   }
 
   function restorePage() {
     generation++;
-    stopObserver();
+    stopWatching();
     for (const [node, text] of originals) if (node.isConnected) node.data = text;
     originals.clear();
     setState({ status: 'idle', done: 0, total: 0, error: '' });

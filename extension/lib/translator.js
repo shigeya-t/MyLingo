@@ -5,6 +5,39 @@ const languageNames = { ja: 'Japanese', en: 'English' };
 // Errors that retrying with a smaller batch cannot fix (bad key, quota, network...).
 export class FatalTranslationError extends Error {}
 
+class RateLimitError extends FatalTranslationError {
+  constructor(message, retryAfterMs) { super(message); this.retryAfterMs = retryAfterMs; }
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const MAX_RETRIES = 3;
+const MAX_RETRY_WAIT_MS = 60000;
+
+// Sliding one-minute window per provider, so requests are spaced out before
+// they hit the service's per-minute quota (e.g. Gemini's free tier).
+const recentRequests = { openai: [], anthropic: [], gemini: [] };
+
+async function waitForRateLimit(provider, perMinute) {
+  if (!perMinute) return;
+  const log = recentRequests[provider];
+  for (;;) {
+    const now = Date.now();
+    while (log.length && now - log[0] >= 60000) log.shift();
+    if (log.length < perMinute) { log.push(now); return; }
+    await sleep(60000 - (now - log[0]) + 50);
+  }
+}
+
+// Gemini reports how long to wait in a RetryInfo detail ("23s");
+// OpenAI and Anthropic use the Retry-After header (seconds).
+function retryAfterMs(response, data) {
+  const header = Number(response.headers.get('retry-after'));
+  if (header > 0) return header * 1000;
+  const info = (data.error?.details || []).find((detail) => detail['@type']?.endsWith('RetryInfo'));
+  const seconds = parseFloat(info?.retryDelay);
+  return seconds > 0 ? seconds * 1000 : null;
+}
+
 function friendlyApiError(provider, model, status, message) {
   const name = configs[provider].name;
   const detail = message || 'サービスから詳細なエラー情報を取得できませんでした。';
@@ -33,11 +66,29 @@ async function postJSON(provider, model, url, headers, body) {
     throw new FatalTranslationError(`${configs[provider].name} に接続できませんでした。ネットワーク接続を確認してください。`);
   }
   const data = await response.json().catch(() => ({}));
+  if (response.status === 429) throw new RateLimitError(friendlyApiError(provider, model, 429, data.error?.message), retryAfterMs(response, data));
   if (!response.ok) throw new FatalTranslationError(friendlyApiError(provider, model, response.status, data.error?.message));
   return data;
 }
 
+// Retries rate-limited requests after the wait the service asks for. A 429
+// without a retry hint (e.g. a daily quota) is retried with backoff, then
+// reported to the user.
 async function callModel(settings, system, user, maxTokens) {
+  for (let attempt = 0; ; attempt++) {
+    await waitForRateLimit(settings.provider, Number(settings.rateLimits?.[settings.provider]) || 0);
+    try {
+      return await requestModel(settings, system, user, maxTokens);
+    } catch (error) {
+      if (!(error instanceof RateLimitError) || attempt >= MAX_RETRIES) throw error;
+      const wait = error.retryAfterMs ?? 5000 * 2 ** attempt;
+      if (wait > MAX_RETRY_WAIT_MS) throw error;
+      await sleep(wait);
+    }
+  }
+}
+
+async function requestModel(settings, system, user, maxTokens) {
   const { provider } = settings;
   const key = settings.apiKeys?.[provider];
   if (!key) throw new FatalTranslationError(`${configs[provider].name} のAPIキーが未設定です。設定画面から入力してください。`);

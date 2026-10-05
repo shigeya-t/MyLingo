@@ -2,7 +2,8 @@
 export const configs = {
   openai: { name: 'ChatGPT', model: 'gpt-5.6-luna' },
   anthropic: { name: 'Claude', model: 'claude-haiku-4-5' },
-  gemini: { name: 'Gemini', model: 'gemini-3.5-flash-lite' }
+  // The Gemini free tier allows 15 requests per minute; stay a little under it.
+  gemini: { name: 'Gemini', model: 'gemini-3.5-flash-lite', rateLimit: 12 }
 };
 
 export const translationModes = {
@@ -15,11 +16,14 @@ export const translationModes = {
 
 export const targetLanguages = { auto: '自動（日本語⇄英語）', ja: '日本語', en: '英語' };
 
-export const defaults = { provider: 'openai', mode: 'faithful', target: 'auto', apiKeys: {}, models: {} };
+export const defaults = { provider: 'openai', mode: 'faithful', target: 'auto', apiKeys: {}, models: {}, rateLimits: {} };
 
 export async function loadSettings() {
   const stored = await chrome.storage.local.get(Object.keys(defaults));
-  return { ...defaults, ...stored };
+  const settings = { ...defaults, ...stored };
+  // An unset limit falls back to the provider default; 0 means unlimited.
+  settings.rateLimits = Object.fromEntries(Object.entries(configs).map(([id, config]) => [id, settings.rateLimits[id] ?? config.rateLimit ?? 0]));
+  return settings;
 }
 
 export function modelFor(settings, provider = settings.provider) {

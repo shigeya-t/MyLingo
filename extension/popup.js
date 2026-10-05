@@ -36,10 +36,10 @@ function renderPage(state) {
   if (state.total) $('#progressBar').style.width = `${Math.round((state.done / state.total) * 100)}%`;
   if (state.status === 'translating') {
     button.textContent = '翻訳を中止して原文に戻す';
-    showStatus(state.total ? `翻訳しています… ${state.done} / ${state.total}` : '翻訳しています…');
+    showStatus(state.total ? `表示中の部分を翻訳しています… ${state.done} / ${state.total}` : '表示中の部分を翻訳しています…');
   } else if (state.status === 'translated') {
     button.textContent = '原文に戻す';
-    showStatus(state.total ? `${state.total} 箇所を翻訳しました。新しく表示された内容も自動で翻訳します。` : '翻訳が必要なテキストは見つかりませんでした。', 'ok');
+    showStatus(state.total ? `表示中の ${state.total} 箇所を翻訳しました。スクロールすると続きを順次翻訳します。` : '表示中に翻訳が必要なテキストはありません。スクロールすると続きを翻訳します。', 'ok');
   } else if (state.status === 'error') {
     button.textContent = state.done ? '原文に戻す' : 'もう一度翻訳';
     showStatus(state.error, 'error');
