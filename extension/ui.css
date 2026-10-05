@@ -37,3 +37,4 @@ button,input,select { font:inherit; } button { color:inherit; cursor:pointer; }
 .model-input { border:1px solid var(--line); border-radius:10px; background:var(--input-bg); color:var(--text); padding:11px 12px; outline:0; font-family:"DM Mono",ui-monospace,monospace; font-size:13px; } .model-input:focus,.key-field:focus-within { border-color:var(--lime-border); }
 input::placeholder { color:var(--placeholder); }
 .toast { position:fixed; left:50%; bottom:28px; transform:translate(-50%,20px); opacity:0; pointer-events:none; padding:10px 16px; border-radius:10px; background:var(--text); color:var(--bg); font-size:13px; font-weight:700; transition:.25s; } .toast.show { opacity:1; transform:translate(-50%,0); }
+.hint { font-weight:500; color:var(--placeholder); margin-left:6px; letter-spacing:0; }
