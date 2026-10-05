@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>MyLingo</title>
+    <link rel="stylesheet" href="ui.css" />
+  </head>
+  <body class="popup">
+    <header class="topbar">
+      <span class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>MyLingo</span>
+      <button class="icon-button" id="openOptions" aria-label="設定を開く" title="設定">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.8 1.8-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V20h-2.55v-.08A1.7 1.7 0 0 0 11.45 18.36a1.7 1.7 0 0 0-1.88.34l-.06.06-1.8-1.8.06-.06A1.7 1.7 0 0 0 8.1 15a1.7 1.7 0 0 0-1.56-1.03h-.08v-2.55h.08A1.7 1.7 0 0 0 8.1 10.4a1.7 1.7 0 0 0-.34-1.88L7.7 8.46l1.8-1.8.06.06a1.7 1.7 0 0 0 1.88.34 1.7 1.7 0 0 0 1.03-1.56v-.08h2.55v.08a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06 1.8 1.8-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.56 1.03h.08v2.55h-.08A1.7 1.7 0 0 0 19.4 15Z"/></svg>
+      </button>
+    </header>
+
+    <div class="provider-switcher" role="tablist" aria-label="AIサービス">
+      <button class="provider" data-provider="openai" role="tab"><span class="provider-orb openai">✦</span>ChatGPT</button>
+      <button class="provider" data-provider="anthropic" role="tab"><span class="provider-orb anthropic">A</span>Claude</button>
+      <button class="provider" data-provider="gemini" role="tab"><span class="provider-orb gemini">✧</span>Gemini</button>
+    </div>
+
+    <div class="field-row">
+      <label class="field-label" for="modeSelect">翻訳モード</label>
+      <select id="modeSelect" class="select"></select>
+    </div>
+    <div class="field-row">
+      <label class="field-label" for="targetSelect">翻訳先</label>
+      <select id="targetSelect" class="select"></select>
+    </div>
+
+    <button id="actionButton" class="primary-button" disabled>このページを翻訳</button>
+    <div class="progress" id="progress" hidden><span id="progressBar"></span></div>
+    <p class="status" id="status" aria-live="polite"></p>
+
+    <footer class="popup-footer"><span id="modelLabel" class="model-label"></span><span>Alt+Shift+T で切替</span></footer>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
