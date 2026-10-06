@@ -37,6 +37,8 @@ ChatGPT、Claude、Gemini を切り替えて使える、日本語・英語向け
 
 `extension/` フォルダには、表示中のWebページをまるごと翻訳するChrome拡張機能が入っています。Webアプリと同じく ChatGPT / Claude / Gemini を切り替えて使えます。
 
+<img src="assets/extension-popup.png" alt="MyLingo Chrome拡張機能のポップアップ画面" width="340">
+
 ### 主な機能
 
 - ツールバーのポップアップから「このページを翻訳」「原文に戻す」を切り替え
