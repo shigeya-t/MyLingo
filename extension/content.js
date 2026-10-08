@@ -6,6 +6,10 @@ if (!window.__myLingoLoaded) {
   const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'TEXTAREA', 'INPUT', 'SELECT', 'OPTION', 'CODE', 'PRE', 'KBD', 'SAMP', 'VAR', 'SVG', 'MATH', 'CANVAS', 'IFRAME']);
   const BATCH_CHARS = 2500;
   const BATCH_SEGMENTS = 40;
+  // The first request is kept small so something appears quickly; the model
+  // takes longer the more it has to write before replying.
+  const FIRST_BATCH_CHARS = 400;
+  const FIRST_BATCH_SEGMENTS = 8;
   const CONCURRENCY = 3;
 
   const originals = new Map(); // Text node -> original text, for restoring.
@@ -18,6 +22,7 @@ if (!window.__myLingoLoaded) {
   let queue = []; // Text nodes in view, waiting to be sent.
   let inFlight = 0;
   let pumpTimer = null;
+  let firstBatch = true;
   let pendingNodes = [];
   let observerTimer = null;
   let bubbleHost = null;
@@ -118,13 +123,15 @@ if (!window.__myLingoLoaded) {
   function takeBatch() {
     const distances = new Map(queue.filter((node) => node.isConnected).map((node) => [node, distanceFromViewport(node)]));
     const sorted = [...distances.keys()].sort((a, b) => distances.get(a) - distances.get(b));
+    const [maxChars, maxSegments] = firstBatch ? [FIRST_BATCH_CHARS, FIRST_BATCH_SEGMENTS] : [BATCH_CHARS, BATCH_SEGMENTS];
     const batch = [];
     let size = 0;
     for (const node of sorted) {
       const length = node.data.trim().length;
-      if (batch.length && (size + length > BATCH_CHARS || batch.length >= BATCH_SEGMENTS)) break;
+      if (batch.length && (size + length > maxChars || batch.length >= maxSegments)) break;
       batch.push(node); size += length;
     }
+    if (batch.length) firstBatch = false;
     queue = sorted.slice(batch.length);
     // Document order inside a batch lets adjacent fragments give each other context.
     return batch.sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
@@ -197,6 +204,7 @@ if (!window.__myLingoLoaded) {
     const { settings } = await chrome.runtime.sendMessage({ type: 'getSettings' });
     const target = settings.target === 'auto' ? detectPageTarget() : settings.target;
     seen = new WeakSet(); // Lets a retry after an error pick up segments that failed.
+    firstBatch = true;
     setState({ status: 'translating', done: 0, total: 0, error: '', target });
     visibility = new IntersectionObserver(onVisibility, { rootMargin: VIEWPORT_MARGIN });
     watchNodes(collectTextNodes(document.body, target));

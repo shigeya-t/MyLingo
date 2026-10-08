@@ -5,6 +5,12 @@ const languageNames = { ja: 'Japanese', en: 'English' };
 // Errors that retrying with a smaller batch cannot fix (bad key, quota, network...).
 export class FatalTranslationError extends Error {}
 
+// Keeps the HTTP status and the service's own message so callers can react to
+// specific API rejections.
+class ApiError extends FatalTranslationError {
+  constructor(message, status, detail) { super(message); this.status = status; this.detail = detail || ''; }
+}
+
 class RateLimitError extends FatalTranslationError {
   constructor(message, retryAfterMs) { super(message); this.retryAfterMs = retryAfterMs; }
 }
@@ -67,7 +73,7 @@ async function postJSON(provider, model, url, headers, body) {
   }
   const data = await response.json().catch(() => ({}));
   if (response.status === 429) throw new RateLimitError(friendlyApiError(provider, model, 429, data.error?.message), retryAfterMs(response, data));
-  if (!response.ok) throw new FatalTranslationError(friendlyApiError(provider, model, response.status, data.error?.message));
+  if (!response.ok) throw new ApiError(friendlyApiError(provider, model, response.status, data.error?.message), response.status, data.error?.message);
   return data;
 }
 
@@ -88,20 +94,53 @@ async function callModel(settings, system, user, maxTokens) {
   }
 }
 
+// Translation needs little reasoning, and thinking delays the first output
+// token. These ask each model family for its lowest thinking setting; models
+// that reject them are remembered and called without (see requestModel).
+function reasoningEffort(model) {
+  if (/^gpt-5\.\d/.test(model)) return 'none';
+  if (/^gpt-5(-|$)/.test(model)) return 'minimal';
+  if (/^o\d/.test(model)) return 'low';
+  return null;
+}
+
+function thinkingConfig(model) {
+  const major = Number(model.match(/^gemini-(\d+)/)?.[1]);
+  if (major >= 3) return { thinkingLevel: 'minimal' };
+  if (/^gemini-2\.5-flash/.test(model)) return { thinkingBudget: 0 };
+  return null;
+}
+
+const rejectsFastSettings = new Set(); // "provider:model" that returned 400 with them.
+
 async function requestModel(settings, system, user, maxTokens) {
   const { provider } = settings;
   const key = settings.apiKeys?.[provider];
   if (!key) throw new FatalTranslationError(`${configs[provider].name} のAPIキーが未設定です。設定画面から入力してください。`);
   const model = modelFor(settings);
+  const id = `${provider}:${model}`;
+  const fast = !rejectsFastSettings.has(id) && Boolean(provider === 'openai' ? reasoningEffort(model) : provider === 'gemini' && thinkingConfig(model));
+  try {
+    return await sendRequest(provider, model, key, system, user, maxTokens, fast);
+  } catch (error) {
+    if (!fast || !(error instanceof ApiError) || error.status !== 400 || !/reason|think|effort/i.test(error.detail)) throw error;
+    rejectsFastSettings.add(id);
+    return sendRequest(provider, model, key, system, user, maxTokens, false);
+  }
+}
+
+async function sendRequest(provider, model, key, system, user, maxTokens, fast) {
   let text;
   if (provider === 'openai') {
-    const data = await postJSON(provider, model, 'https://api.openai.com/v1/responses', { Authorization: `Bearer ${key}` }, { model, instructions: system, input: user });
+    const body = { model, instructions: system, input: user };
+    if (fast) body.reasoning = { effort: reasoningEffort(model) };
+    const data = await postJSON(provider, model, 'https://api.openai.com/v1/responses', { Authorization: `Bearer ${key}` }, body);
     text = getOpenAIText(data);
   } else if (provider === 'anthropic') {
     const data = await postJSON(provider, model, 'https://api.anthropic.com/v1/messages', { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, { model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] });
     text = (data.content || []).filter((part) => part.type === 'text').map((part) => part.text || '').join('');
   } else {
-    const data = await postJSON(provider, model, `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, { 'x-goog-api-key': key }, { systemInstruction: { parts: [{ text: system }] }, contents: [{ parts: [{ text: user }] }], generationConfig: { temperature: 0.2 } });
+    const data = await postJSON(provider, model, `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, { 'x-goog-api-key': key }, { systemInstruction: { parts: [{ text: system }] }, contents: [{ parts: [{ text: user }] }], generationConfig: { temperature: 0.2, ...(fast && { thinkingConfig: thinkingConfig(model) }) } });
     text = data.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('');
   }
   if (!text) throw new FatalTranslationError('翻訳結果を取得できませんでした。設定のモデル名を確認してください。');
