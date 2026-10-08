@@ -213,6 +213,11 @@ if (!window.__myLingoLoaded) {
     return state;
   }
 
+  function failStart(error) {
+    setState({ status: 'error', done: 0, error: error?.message || '翻訳を開始できませんでした。' });
+    return state;
+  }
+
   function restorePage() {
     generation++;
     stopWatching();
@@ -291,11 +296,11 @@ if (!window.__myLingoLoaded) {
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'getStatus') sendResponse(state);
-    else if (message.type === 'translatePage') translatePage().then(sendResponse);
+    else if (message.type === 'translatePage') translatePage().then(sendResponse, (error) => sendResponse(failStart(error)));
     else if (message.type === 'restorePage') sendResponse(restorePage());
     else if (message.type === 'toggle') {
       if (state.status === 'translating' || state.status === 'translated' || originals.size) sendResponse(restorePage());
-      else translatePage().then(sendResponse);
+      else translatePage().then(sendResponse, (error) => sendResponse(failStart(error)));
     } else if (message.type === 'translateSelection') {
       translateSelection(message.text);
       sendResponse({});
