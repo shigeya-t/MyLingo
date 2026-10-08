@@ -108,6 +108,55 @@ function getOpenAIText(data) {
     .join('');
 }
 
+// Translation needs little reasoning, and thinking delays the first output
+// token. These ask each model family for its lowest thinking setting; models
+// that reject them are remembered and called without (see requestTranslation).
+function reasoningEffort(model) {
+  if (/^gpt-5\.\d/.test(model)) return 'none';
+  if (/^gpt-5(-|$)/.test(model)) return 'minimal';
+  if (/^o\d/.test(model)) return 'low';
+  return null;
+}
+
+function thinkingConfig(model) {
+  const major = Number(model.match(/^gemini-(\d+)/)?.[1]);
+  if (major >= 3) return { thinkingLevel: 'minimal' };
+  if (/^gemini-2\.5-flash/.test(model)) return { thinkingBudget: 0 };
+  return null;
+}
+
+const rejectsFastSettings = new Set(); // "provider:model" that returned 400 with them.
+
+// Keeps the HTTP status and the service's own message so the caller can
+// react to specific API rejections.
+class ApiError extends Error {
+  constructor(status, detail) { super(friendlyApiError(status, detail)); this.status = status; this.detail = detail || ''; }
+}
+
+async function callProvider(key, model, sourceLanguage, text, fast) {
+  if (provider === 'openai') {
+    const body = { model, instructions: systemPrompt(sourceLanguage), input: wrapSource(text) };
+    if (fast) body.reasoning = { effort: reasoningEffort(model) };
+    const response = await fetch('https://api.openai.com/v1/responses', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }, body: JSON.stringify(body) });
+    const data = await response.json();
+    if (!response.ok) throw new ApiError(response.status, data.error?.message);
+    return getOpenAIText(data);
+  }
+  if (provider === 'anthropic') {
+    const response = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, body: JSON.stringify({ model, max_tokens: 2048, system: systemPrompt(sourceLanguage), messages: [{ role: 'user', content: wrapSource(text) }] }) });
+    const data = await response.json();
+    if (!response.ok) throw new ApiError(response.status, data.error?.message);
+    return (data.content || [])
+      .filter((part) => part.type === 'text')
+      .map((part) => part.text || '')
+      .join('');
+  }
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ systemInstruction: { parts: [{ text: systemPrompt(sourceLanguage) }] }, contents: [{ parts: [{ text: wrapSource(text) }] }], generationConfig: { temperature: 0.2, ...(fast && { thinkingConfig: thinkingConfig(model) }) } }) });
+  const data = await response.json();
+  if (!response.ok) throw new ApiError(response.status, data.error?.message);
+  return data.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('');
+}
+
 async function requestTranslation(text) {
   const key = localStorage.getItem(providerConfig().key);
   if (!key) {
@@ -120,25 +169,15 @@ async function requestTranslation(text) {
   $('#translationStatus').textContent = '翻訳しています…';
   output('');
   try {
+    const id = `${provider}:${model}`;
+    const fast = !rejectsFastSettings.has(id) && Boolean(provider === 'openai' ? reasoningEffort(model) : provider === 'gemini' && thinkingConfig(model));
     let result;
-    if (provider === 'openai') {
-      const response = await fetch('https://api.openai.com/v1/responses', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }, body: JSON.stringify({ model, instructions: systemPrompt(sourceLanguage), input: wrapSource(text) }) });
-      const data = await response.json();
-      if (!response.ok) throw new Error(friendlyApiError(response.status, data.error?.message));
-      result = getOpenAIText(data);
-    } else if (provider === 'anthropic') {
-      const response = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, body: JSON.stringify({ model, max_tokens: 2048, system: systemPrompt(sourceLanguage), messages: [{ role: 'user', content: wrapSource(text) }] }) });
-      const data = await response.json();
-      if (!response.ok) throw new Error(friendlyApiError(response.status, data.error?.message));
-      result = (data.content || [])
-        .filter((part) => part.type === 'text')
-        .map((part) => part.text || '')
-        .join('');
-    } else {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ systemInstruction: { parts: [{ text: systemPrompt(sourceLanguage) }] }, contents: [{ parts: [{ text: wrapSource(text) }] }], generationConfig: { temperature: 0.2 } }) });
-      const data = await response.json();
-      if (!response.ok) throw new Error(friendlyApiError(response.status, data.error?.message));
-      result = data.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('');
+    try {
+      result = await callProvider(key, model, sourceLanguage, text, fast);
+    } catch (error) {
+      if (!fast || !(error instanceof ApiError) || error.status !== 400 || !/reason|think|effort/i.test(error.detail)) throw error;
+      rejectsFastSettings.add(id);
+      result = await callProvider(key, model, sourceLanguage, text, false);
     }
     if (!result) throw new Error('翻訳結果を取得できませんでした。モデルからテキスト形式の応答が返らなかったため、設定のモデル名を確認してください。');
     output(result.trim());
