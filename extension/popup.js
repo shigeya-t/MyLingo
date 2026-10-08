@@ -80,8 +80,12 @@ async function init() {
     if (!restore) {
       const current = await loadSettings();
       if (!current.apiKeys?.[current.provider]) { chrome.runtime.openOptionsPage(); return; }
+      // The content script drives the translation, so the popup can close right away.
+      chrome.tabs.sendMessage(tabId, { type: 'translatePage' }).catch(() => {});
+      window.close();
+      return;
     }
-    renderPage(await chrome.tabs.sendMessage(tabId, { type: restore ? 'restorePage' : 'translatePage' }));
+    renderPage(await chrome.tabs.sendMessage(tabId, { type: 'restorePage' }));
   });
 
   // Progress updates broadcast by the content script.
