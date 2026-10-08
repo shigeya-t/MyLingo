@@ -80,9 +80,19 @@ async function init() {
     if (!restore) {
       const current = await loadSettings();
       if (!current.apiKeys?.[current.provider]) { chrome.runtime.openOptionsPage(); return; }
-      // The content script drives the translation, so the popup can close right away.
-      chrome.tabs.sendMessage(tabId, { type: 'translatePage' }).catch(() => {});
-      window.close();
+      // The content script drives the translation, so the popup can close once it
+      // has the request. Closing before the reply can drop the message while
+      // Chrome is still opening the channel to the tab.
+      $('#actionButton').disabled = true;
+      showStatus('翻訳を開始しています…');
+      try {
+        const state = await chrome.tabs.sendMessage(tabId, { type: 'translatePage' });
+        if (state?.status === 'error') { renderPage(state); return; }
+        window.close();
+      } catch {
+        renderPage(pageState || { status: 'idle' });
+        showStatus('翻訳を開始できませんでした。ページを再読み込みしてからもう一度お試しください。', 'error');
+      }
       return;
     }
     renderPage(await chrome.tabs.sendMessage(tabId, { type: 'restorePage' }));
