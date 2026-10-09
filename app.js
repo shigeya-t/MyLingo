@@ -36,6 +36,8 @@ let target = localStorage.getItem('lingo-target') || 'English';
 if (target !== customTarget && !targetLanguages[target]) target = 'English';
 let mode = localStorage.getItem('lingo-mode') || 'faithful';
 let timer;
+let latestRequest = 0; // Replies to older requests are dropped so they cannot overwrite newer text.
+let lastResult = null; // The translation on screen, or null while none is shown (empty, pending, error).
 const $ = (selector) => document.querySelector(selector);
 const source = $('#sourceText'), translation = $('#translation');
 
@@ -201,6 +203,8 @@ async function callProvider(key, model, language, text, fast) {
 }
 
 async function requestTranslation(text) {
+  const request = ++latestRequest;
+  lastResult = null;
   if (vaultLocked()) {
     showLocked();
     $('#translationStatus').textContent = 'APIキーがロックされています';
@@ -239,10 +243,13 @@ async function requestTranslation(text) {
       rejectsFastSettings.add(id);
       result = await callProvider(key, model, language, text, false);
     }
+    if (request !== latestRequest) return;
     if (!result) throw new Error('翻訳結果を取得できませんでした。モデルからテキスト形式の応答が返らなかったため、設定のモデル名を確認してください。');
-    output(result.trim());
+    lastResult = result.trim();
+    output(lastResult);
     $('#translationStatus').textContent = '翻訳完了';
   } catch (error) {
+    if (request !== latestRequest) return;
     output(friendlyNetworkError(error));
     $('#translationStatus').textContent = 'エラーが発生しました';
   }
@@ -330,11 +337,17 @@ const vaultPanel = MyLingoVault.mountPanel($('#vaultPanel'), {
   reset() { localStorage.removeItem(vaultStorageKey); vault = null; unlocked = null; afterVaultChange(); }
 });
 
+function refreshInputInfo() {
+  $('#characterCount').textContent = `${source.value.length.toLocaleString('ja-JP')} 文字`;
+  setLanguages(source.value.trim());
+}
+
 function scheduleTranslation() {
   clearTimeout(timer);
+  latestRequest++;
+  lastResult = null;
   const text = source.value.trim();
-  $('#characterCount').textContent = `${source.value.length.toLocaleString('ja-JP')} 文字`;
-  setLanguages(text);
+  refreshInputInfo();
   if (!text) { outputEmpty(); $('#translationStatus').textContent = '準備完了'; return; }
   timer = setTimeout(() => requestTranslation(text), 700);
 }
@@ -357,14 +370,29 @@ source.addEventListener('keydown', (event) => { if ((event.metaKey || event.ctrl
 document.querySelectorAll('.provider').forEach((button) => button.addEventListener('click', () => { setProvider(button.dataset.provider); if (source.value.trim()) scheduleTranslation(); }));
 $('#clearButton').addEventListener('click', () => { source.value = ''; scheduleTranslation(); source.focus(); });
 $('#swapButton').addEventListener('click', () => {
-  const text = translation.textContent.trim();
-  if (!text || translation.querySelector('.empty-state')) return;
-  // The original text's language becomes the new target, so the swap translates back.
-  const original = detectLanguage(source.value);
-  const swapped = original && original !== target;
-  if (swapped) setTarget(original);
-  source.value = text; scheduleTranslation(); source.focus();
-  toast(swapped ? `原文と翻訳を入れ替えました（翻訳先: ${targetLanguages[original]}）` : '翻訳結果を原文にコピーしました');
+  // Only a finished translation can be swapped; while one is pending the pane
+  // would still hold the previous result.
+  if (!lastResult) return;
+  const text = lastResult, originalText = source.value.trim();
+  const original = detectLanguage(originalText);
+  if (original && original !== target) {
+    // The original text is already the translation of the new input, so show it
+    // as is and make its language the new target.
+    setTarget(original);
+    clearTimeout(timer);
+    latestRequest++;
+    source.value = text;
+    refreshInputInfo();
+    output(originalText);
+    lastResult = originalText;
+    $('#translationStatus').textContent = '翻訳完了';
+    toast(`原文と翻訳を入れ替えました（翻訳先: ${targetLanguages[original]}）`);
+  } else {
+    source.value = text;
+    scheduleTranslation();
+    toast('翻訳結果を原文にコピーしました');
+  }
+  source.focus();
 });
 document.querySelectorAll('[data-copy]').forEach((button) => button.addEventListener('click', async () => { const id = button.dataset.copy; const text = id === 'translation' ? translation.textContent.trim() : source.value; if (!text) return; await navigator.clipboard.writeText(text); toast('コピーしました'); }));
 $('.settings-trigger').addEventListener('click', openSettings); $('.close-settings').addEventListener('click', closeSettings); $('#scrim').addEventListener('click', closeSettings);
