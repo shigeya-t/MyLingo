@@ -181,13 +181,17 @@
         ${option('passkey', 'パスキー（Touch ID など）で暗号化', passkeyReason ? escape(passkeyReason) : '使い始めるときに Touch ID などで解除します。', passkeyReason && current !== 'passkey')}
         ${option('passphrase', 'パスフレーズで暗号化', '使い始めるときにパスフレーズを入力して解除します。')}
       </div>`;
-      if (locked) {
-        const status = sessionUnlocked
-          ? 'ブラウザを閉じるまでロック解除中です。キーの確認・変更や保存方法の変更には、もう一度認証してください。'
-          : 'APIキーはロックされています。翻訳や保存方法の変更には、ロックを解除してください。';
+      if (locked && sessionUnlocked) {
+        // Usable for translating until the browser closes; only editing here
+        // needs the key again, so lead with locking, not unlocking.
+        const input = method === 'passphrase' ? '<input class="vault-input" id="vaultPassphrase" type="password" autocomplete="current-password" placeholder="キーを編集するときはパスフレーズを入力" />' : '';
+        html += `<p class="vault-status ok">APIキーは${methodNames[method]}で暗号化して保存されています。ブラウザを閉じるまでロック解除中で、翻訳に使えます。</p>
+          <p class="vault-status">この画面でキーや保存方法を変更するときは、もう一度認証してください。</p>${input}
+          <div class="vault-buttons">${button('lock', 'ロックする', true)}${button('unlock', method === 'passkey' ? 'キーを編集する（パスキーで認証）' : 'キーを編集する')}</div>`;
+      } else if (locked) {
         const input = method === 'passphrase' ? '<input class="vault-input" id="vaultPassphrase" type="password" autocomplete="current-password" placeholder="パスフレーズ" />' : '';
-        html += `<p class="vault-status warn">${status}</p>${input}
-          <div class="vault-buttons">${button('unlock', method === 'passkey' ? 'パスキー（Touch ID など）で解除' : '解除する', true)}${sessionUnlocked ? button('lock', 'ロックする') : ''}</div>
+        html += `<p class="vault-status warn">APIキーはロックされています。翻訳や保存方法の変更には、ロックを解除してください。</p>${input}
+          <div class="vault-buttons">${button('unlock', method === 'passkey' ? 'パスキー（Touch ID など）で解除' : '解除する', true)}</div>
           <button type="button" class="vault-link" data-vault="reset"${busy ? ' disabled' : ''}>${method === 'passkey' ? 'パスキーを使えない場合' : 'パスフレーズを忘れた場合'}（保存したキーを削除）</button>`;
       } else if (choice !== current) {
         const apply = `<div class="vault-buttons">${button('apply', 'この方法に変更', true)}${button('cancel', 'キャンセル')}</div>`;
