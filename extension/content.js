@@ -55,8 +55,15 @@ if (!window.__myLingoLoaded) {
     return target === 'Japanese' && /[぀-ヿ]/.test(text);
   }
 
+  // The element a text node sits in. Text placed directly in a shadow root
+  // has no parent element, so its host stands in.
+  const elementOf = (node) => node.parentElement || node.parentNode?.host || null;
+  // Steps out of a shadow root to its host, so attributes such as
+  // translate="no" on a host also cover its shadow tree.
+  const parentOf = (element) => element.parentElement || element.parentNode?.host || null;
+
   function shouldSkipElement(element) {
-    for (let current = element; current && current !== document.body; current = current.parentElement) {
+    for (let current = element; current && current !== current.ownerDocument.body; current = parentOf(current)) {
       if (SKIP_TAGS.has(current.tagName.toUpperCase())) return true;
       if (current.isContentEditable || isOwnUi(current)) return true;
       if (current.getAttribute('translate') === 'no' || current.classList.contains('notranslate')) return true;
@@ -64,22 +71,66 @@ if (!window.__myLingoLoaded) {
     return false;
   }
 
+  // Shadow roots and frames are separate trees that a TreeWalker does not
+  // enter. Closed shadow roots are reached through chrome.dom, which only
+  // custom elements are checked with to keep the walk cheap. Cross-origin
+  // frames give no contentDocument and are left alone.
+  function innerTree(element) {
+    const shadow = element.shadowRoot || (element.localName.includes('-') && chrome.dom?.openOrClosedShadowRoot?.(element));
+    if (shadow) return shouldSkipElement(element) ? null : shadow;
+    if (element.localName !== 'iframe' && element.localName !== 'frame') return null;
+    if (element.getAttribute('translate') === 'no' || element.classList.contains('notranslate') || shouldSkipElement(parentOf(element))) return null;
+    watchFrameLoads(element);
+    return element.contentDocument?.body || null;
+  }
+
+  // A frame that loads or navigates after translation started gets a new
+  // document, which is collected and watched like the first one.
+  const framesWatched = new WeakSet();
+  function watchFrameLoads(frame) {
+    if (framesWatched.has(frame)) return;
+    framesWatched.add(frame);
+    frame.addEventListener('load', () => {
+      const tree = visibility && frame.isConnected && innerTree(frame);
+      if (tree) watchNodes(collectTree(tree, state.target));
+    });
+  }
+
+  function collectTree(tree, target) {
+    observer?.observe(tree, { childList: true, subtree: true });
+    return collectTextNodes(tree, target);
+  }
+
   function collectTextNodes(root, target) {
     const nodes = [];
     if (!root) return nodes;
     if (root.nodeType === Node.TEXT_NODE) root = root.parentNode;
-    if (!root || (root.nodeType === Node.ELEMENT_NODE && shouldSkipElement(root))) return nodes;
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    if (!root) return nodes;
+    const trees = [];
+    if (root.nodeType === Node.ELEMENT_NODE) {
+      // The walker never filters its root, so a root that is itself a
+      // shadow host or a frame (e.g. one just added) is checked here.
+      const tree = innerTree(root);
+      if (tree) trees.push(tree);
+      else if (shouldSkipElement(root)) return nodes;
+    }
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
       acceptNode(node) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const tree = innerTree(node);
+          if (tree) trees.push(tree);
+          return NodeFilter.FILTER_SKIP;
+        }
         if (seen.has(node) || originals.has(node)) return NodeFilter.FILTER_REJECT;
         const text = node.data.trim();
         // A copy of our own translation; restoring puts its original back.
         if (sources.has(text)) { copies.add(node); return NodeFilter.FILTER_REJECT; }
         if (text.length < 2 || !/\p{L}/u.test(text) || alreadyInTarget(text, target)) return NodeFilter.FILTER_REJECT;
-        return shouldSkipElement(node.parentElement) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+        return shouldSkipElement(elementOf(node)) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
       }
     });
     while (walker.nextNode()) nodes.push(walker.currentNode);
+    for (const tree of trees) nodes.push(...collectTree(tree, target));
     return nodes;
   }
 
@@ -90,7 +141,8 @@ if (!window.__myLingoLoaded) {
   function watchNodes(nodes) {
     for (const node of nodes) {
       seen.add(node);
-      const element = node.parentElement;
+      const element = elementOf(node);
+      if (!element) continue;
       if (!nodesByElement.has(element)) {
         nodesByElement.set(element, []);
         visibility.observe(element);
@@ -119,10 +171,16 @@ if (!window.__myLingoLoaded) {
   }
 
   function distanceFromViewport(node) {
-    const rect = node.parentElement?.getBoundingClientRect();
+    const rect = elementOf(node)?.getBoundingClientRect();
     if (!rect) return Infinity;
-    if (rect.bottom < 0) return -rect.bottom;
-    if (rect.top > window.innerHeight) return rect.top - window.innerHeight;
+    let { top, bottom } = rect;
+    // Rects inside a frame are relative to the frame; shift them into the page.
+    for (let view = node.ownerDocument.defaultView; view && view !== window && view.frameElement; view = view.parent) {
+      const offset = view.frameElement.getBoundingClientRect().top;
+      top += offset; bottom += offset;
+    }
+    if (bottom < 0) return -bottom;
+    if (top > window.innerHeight) return top - window.innerHeight;
     return 0;
   }
 
@@ -222,8 +280,10 @@ if (!window.__myLingoLoaded) {
     firstBatch = true;
     setState({ status: 'translating', done: 0, total: 0, error: '', target, mode });
     visibility = new IntersectionObserver(onVisibility, { rootMargin: VIEWPORT_MARGIN });
-    watchNodes(collectTextNodes(document.body, target));
+    // The observer comes first so shadow roots and frames found while
+    // collecting can be added to it.
     startObserver();
+    watchNodes(collectTextNodes(document.body, target));
     schedulePump();
     return state;
   }

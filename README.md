@@ -120,7 +120,7 @@ Gemini API's free tier limits requests per minute (e.g. 15 per minute for `gemin
 
 ### How it works
 
-The extension extracts the page's text element by element and sends only the parts on screen (and a little beyond), closest to the viewport first, to the AI in batches, then replaces them with the translations (without changing the HTML structure). API calls are made from the extension's background service worker, so they are not affected by the site's settings. Page access is limited to `activeTab`, which is granted temporarily only to the tab you translate.
+The extension extracts the page's text element by element and sends only the parts on screen (and a little beyond), closest to the viewport first, to the AI in batches, then replaces them with the translations (without changing the HTML structure). API calls are made from the extension's background service worker, so they are not affected by the site's settings. Page access is limited to `activeTab`, which is granted temporarily only to the tab you translate. Text inside Shadow DOM (web components) and inside frames from the same site is translated too; frames from other sites (embedded videos, ads, and the like) are left as they are, because `activeTab` does not reach them.
 
 ## About API keys
 
