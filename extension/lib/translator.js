@@ -1,4 +1,4 @@
-import { configs, translationModes, modelFor } from './providers.js';
+import { configs, translationModes, modelFor, missingKeyMessage } from './providers.js';
 
 const languageNames = { ja: 'Japanese', en: 'English' };
 
@@ -117,7 +117,7 @@ async function requestModel(settings, system, user, maxTokens) {
   const { provider } = settings;
   const key = settings.apiKeys?.[provider];
   if (settings.locked) throw new FatalTranslationError('APIキーがロックされています。MyLingo の設定画面でロックを解除してください。');
-  if (!key) throw new FatalTranslationError(`${configs[provider].name} のAPIキーが未設定です。設定画面から入力してください。`);
+  if (!key) throw new FatalTranslationError(missingKeyMessage(settings));
   const model = modelFor(settings);
   const id = `${provider}:${model}`;
   const fast = !rejectsFastSettings.has(id) && Boolean(provider === 'openai' ? reasoningEffort(model) : provider === 'gemini' && thinkingConfig(model));

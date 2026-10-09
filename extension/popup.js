@@ -1,4 +1,4 @@
-import { configs, translationModes, targetLanguages, loadSettings, modelFor, requestUnlock } from './lib/providers.js';
+import { translationModes, targetLanguages, loadSettings, modelFor, requestUnlock, unlockVault, missingKeyMessage } from './lib/providers.js';
 
 const $ = (selector) => document.querySelector(selector);
 let tabId = null;
@@ -18,8 +18,13 @@ function renderProvider(settings) {
   });
   $('#modelLabel').textContent = modelFor(settings);
   const hasKey = Boolean(settings.apiKeys?.[settings.provider]);
-  if (settings.locked) showStatus('APIキーがロックされています。翻訳を始めると、ロックを解除する画面が開きます。', 'warn');
-  else if (!hasKey) showStatus(`${configs[settings.provider].name} のAPIキーが未設定です。右上の設定から入力してください。`, 'warn');
+  // A passphrase can be typed right here; a passkey needs the unlock window
+  // because Chrome closes the popup when it shows its passkey dialog.
+  const passphrase = settings.locked && settings.lockMethod === 'passphrase';
+  $('#unlockPassphrase').hidden = !passphrase;
+  if (passphrase) showStatus('APIキーがロックされています。パスフレーズを入力して翻訳してください。', 'warn');
+  else if (settings.locked) showStatus('APIキーがロックされています。翻訳を始めると、パスキーで解除する画面が開きます。', 'warn');
+  else if (!hasKey) showStatus(missingKeyMessage(settings), 'warn');
   else if (!pageState || pageState.status === 'idle') showStatus('');
 }
 
@@ -76,10 +81,24 @@ async function init() {
   $('#modeSelect').addEventListener('change', () => chrome.storage.local.set({ mode: $('#modeSelect').value }));
   $('#targetSelect').addEventListener('change', () => chrome.storage.local.set({ target: $('#targetSelect').value }));
   $('#openOptions').addEventListener('click', () => chrome.runtime.openOptionsPage());
+  $('#unlockPassphrase').addEventListener('keydown', (event) => { if (event.key === 'Enter') $('#actionButton').click(); });
   $('#actionButton').addEventListener('click', async () => {
     const restore = pageState && (pageState.status === 'translating' || pageState.status === 'translated' || (pageState.status === 'error' && pageState.done));
     if (!restore) {
-      const current = await loadSettings();
+      let current = await loadSettings();
+      if (current.locked && current.lockMethod === 'passphrase') {
+        const passphrase = $('#unlockPassphrase').value;
+        if (!passphrase) { $('#unlockPassphrase').focus(); return; }
+        try {
+          await unlockVault(passphrase);
+        } catch (error) {
+          showStatus(MyLingoVault.friendlyError(error), 'error');
+          $('#unlockPassphrase').select();
+          return;
+        }
+        current = await loadSettings();
+        $('#unlockPassphrase').hidden = true;
+      }
       if (current.locked) { await requestUnlock(tabId, { type: 'translatePage' }); window.close(); return; }
       if (!current.apiKeys?.[current.provider]) { chrome.runtime.openOptionsPage(); return; }
       // The content script drives the translation, so the popup can close once it
