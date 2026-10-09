@@ -160,12 +160,15 @@ async function callProvider(key, model, sourceLanguage, text, fast) {
 
 async function requestTranslation(text) {
   if (vaultLocked()) {
-    translation.innerHTML = '<div class="locked-state"><p>APIキーはロックされています。</p><button type="button" class="unlock-button">ロックを解除して翻訳</button></div>';
-    translation.querySelector('.unlock-button').addEventListener('click', promptUnlock);
+    showLocked();
     $('#translationStatus').textContent = 'APIキーがロックされています';
     // Start unlocking on the first locked translation; after that, wait for
-    // the button so typing does not keep reopening the panel.
-    if (!unlockPrompted) promptUnlock();
+    // the pane's button so typing is not interrupted again.
+    if (!unlockPrompted) {
+      unlockPrompted = true;
+      if (vault.method === 'passkey') unlockFromPane({ quiet: true });
+      else translation.querySelector('.unlock-input').focus();
+    }
     return;
   }
   const key = apiKey(provider);
@@ -216,15 +219,38 @@ async function saveApiKey(id, value) {
   unlocked.keys = keys;
 }
 
-let unlockPrompted = false, unlockForTranslation = false;
+let unlockPrompted = false, unlocking = false;
 
-// Opens the settings panel and starts unlocking; once unlocked, the panel
-// closes and the pending translation runs.
-function promptUnlock() {
-  unlockPrompted = true;
-  openSettings();
-  unlockForTranslation = true;
-  vaultPanel.startUnlock();
+// Unlocks from the translation pane without opening the settings: a passkey
+// is asked for with the button, a passphrase is typed into the pane.
+function showLocked() {
+  if (translation.querySelector('.locked-state')) return; // Keep a half-typed passphrase.
+  const passkey = vault.method === 'passkey';
+  translation.innerHTML = `<div class="locked-state"><p>APIキーはロックされています。</p>${passkey ? '' : '<input class="unlock-input" type="password" autocomplete="current-password" placeholder="パスフレーズ" aria-label="パスフレーズ" />'}<button type="button" class="unlock-button">${passkey ? 'パスキー（Touch ID など）で解除して翻訳' : '解除して翻訳'}</button><p class="unlock-error" role="alert"></p></div>`;
+  translation.querySelector('.unlock-button').addEventListener('click', () => unlockFromPane());
+  translation.querySelector('.unlock-input')?.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); unlockFromPane(); } });
+}
+
+async function unlockFromPane({ quiet = false } = {}) {
+  if (unlocking || !vaultLocked()) return;
+  const pane = translation.querySelector('.locked-state');
+  const button = pane?.querySelector('.unlock-button'), error = pane?.querySelector('.unlock-error');
+  unlocking = true;
+  if (button) button.disabled = true;
+  if (error) error.textContent = '';
+  try {
+    unlocked = await MyLingoVault.unlock(vault, pane?.querySelector('.unlock-input')?.value);
+    toast('ロックを解除しました');
+    vaultPanel.render();
+    afterVaultChange();
+  } catch (caught) {
+    // A passkey prompt started without a click may be refused or dismissed;
+    // the button is right there, so stay quiet about it.
+    if (error && !(quiet && caught?.name === 'NotAllowedError')) error.textContent = MyLingoVault.friendlyError(caught);
+  } finally {
+    unlocking = false;
+    if (button?.isConnected) button.disabled = false;
+  }
 }
 
 function afterVaultChange() {
@@ -245,7 +271,6 @@ const vaultPanel = MyLingoVault.mountPanel($('#vaultPanel'), {
   },
   async unlock(passphrase) {
     unlocked = await MyLingoVault.unlock(vault, passphrase);
-    if (unlockForTranslation) { closeSettings(); toast('ロックを解除しました'); }
     afterVaultChange();
   },
   lock() { unlocked = null; afterVaultChange(); },
@@ -268,7 +293,7 @@ function scheduleTranslation() {
 }
 
 function openSettings() { fillSettings(); vaultPanel.render(); $('#settingsPanel').classList.add('open'); $('#scrim').classList.add('show'); $('#settingsPanel').setAttribute('aria-hidden', 'false'); }
-function closeSettings() { unlockForTranslation = false; $('#settingsPanel').classList.remove('open'); $('#scrim').classList.remove('show'); $('#settingsPanel').setAttribute('aria-hidden', 'true'); }
+function closeSettings() { $('#settingsPanel').classList.remove('open'); $('#scrim').classList.remove('show'); $('#settingsPanel').setAttribute('aria-hidden', 'true'); }
 function fillSettings() {
   const config = providerConfig(), locked = vaultLocked();
   $('#keyProvider').textContent = config.name;

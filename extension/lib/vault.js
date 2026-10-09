@@ -257,5 +257,5 @@
     return { render, startUnlock };
   }
 
-  globalThis.MyLingoVault = { create, unlock, reseal, mountPanel };
+  globalThis.MyLingoVault = { create, unlock, reseal, mountPanel, friendlyError };
 })();
