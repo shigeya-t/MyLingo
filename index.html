@@ -45,10 +45,13 @@
       <section class="workspace" aria-label="翻訳ワークスペース">
         <div class="language-strip">
           <div class="language source-language"><span class="status-dot"></span><span id="sourceLang">言語を自動判別</span></div>
-          <button class="swap-button" id="swapButton" aria-label="翻訳結果を入力欄に入れ替え" title="翻訳結果を左側にコピー">
+          <button class="swap-button" id="swapButton" aria-label="原文と翻訳を入れ替え" title="原文と翻訳を入れ替え">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h11M14.5 3.5 18 7l-3.5 3.5M17 17H6M9.5 20.5 6 17l3.5-3.5"/></svg>
           </button>
-          <div class="language target-language"><span id="targetLang">英語</span></div>
+          <div class="language target-language">
+            <select id="targetSelect" class="target-select" aria-label="翻訳先の言語"></select>
+            <input id="customTarget" class="custom-target" type="text" placeholder="言語名（例: アラビア語）" aria-label="翻訳先の言語名" hidden />
+          </div>
         </div>
 
         <div class="panes">
@@ -80,7 +83,7 @@
         </div>
       </section>
 
-      <footer><span><i></i> 日本語と英語を自動判別して翻訳します</span><span>⌘ + Enter で翻訳</span></footer>
+      <footer><span><i></i> 原文の言語を自動判別して翻訳します</span><span>⌘ + Enter で翻訳</span></footer>
     </main>
 
     <aside class="settings-panel" id="settingsPanel" aria-hidden="true">
@@ -102,6 +105,7 @@
     <div id="toast" class="toast" role="status"></div>
     <script src="extension/lib/version.js"></script>
     <script src="extension/lib/vault.js"></script>
+    <script src="extension/lib/languages.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

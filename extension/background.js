@@ -1,9 +1,5 @@
-import { loadSettings, requestUnlock } from './lib/providers.js';
+import { loadSettings, requestUnlock, targetLanguageName } from './lib/providers.js';
 import { translateSegments, translateText } from './lib/translator.js';
-
-function detectTarget(text) {
-  return /[぀-ヿ㐀-龯]/.test(text) ? 'en' : 'ja';
-}
 
 async function injectContentScript(tabId, frameIds) {
   await chrome.scripting.executeScript({ target: frameIds ? { tabId, frameIds } : { tabId }, files: ['content.js'] });
@@ -48,16 +44,19 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
   }
 });
 
+const missingTargetMessage = '翻訳先の言語が未入力です。ツールバーの MyLingo で「その他」の言語名を入力してください。';
+
 async function handleMessage(message, sender) {
   const settings = await loadSettings();
   if (message.type === 'translateSegments') {
     return { translations: await translateSegments(settings, message.segments, message.target) };
   }
   if (message.type === 'translateText') {
-    const target = settings.target === 'auto' ? detectTarget(message.text) : settings.target;
+    const target = targetLanguageName(settings);
+    if (!target) throw new Error(missingTargetMessage);
     return { translation: await translateText(settings, message.text, target) };
   }
-  if (message.type === 'getSettings') return { settings: { provider: settings.provider, mode: settings.mode, target: settings.target } };
+  if (message.type === 'getSettings') return { settings: { provider: settings.provider, mode: settings.mode, target: targetLanguageName(settings) } };
   if (message.type === 'status' && sender.tab?.id) {
     const text = message.status === 'translated' ? 'ON' : message.status === 'translating' ? '…' : message.status === 'error' ? '!' : '';
     chrome.action.setBadgeBackgroundColor({ tabId: sender.tab.id, color: message.status === 'error' ? '#e5484d' : '#5f8a1a' });

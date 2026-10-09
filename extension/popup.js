@@ -1,4 +1,4 @@
-import { translationModes, targetLanguages, loadSettings, modelFor, requestUnlock, unlockVault, missingKeyMessage } from './lib/providers.js';
+import { translationModes, targetLanguages, customTarget, targetLanguageName, loadSettings, modelFor, requestUnlock, unlockVault, missingKeyMessage } from './lib/providers.js';
 
 const $ = (selector) => document.querySelector(selector);
 let tabId = null;
@@ -54,6 +54,26 @@ function renderPage(state) {
   }
 }
 
+// True while the page shows (or is fetching) a translation.
+function pageTranslated() {
+  return Boolean(pageState && (pageState.status === 'translating' || pageState.status === 'translated' || (pageState.status === 'error' && pageState.done)));
+}
+
+// After the target language or translation mode changes on a translated page, translate it again
+// right away instead of making the user restore and translate by hand.
+async function retranslate() {
+  if (!pageTranslated()) return;
+  const settings = await loadSettings();
+  const target = targetLanguageName(settings);
+  if (!target || (target === pageState.target && settings.mode === pageState.mode) || settings.locked) return;
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: 'restorePage' });
+    renderPage(await chrome.tabs.sendMessage(tabId, { type: 'translatePage' }));
+  } catch {
+    showStatus('再翻訳できませんでした。ページを再読み込みしてからもう一度お試しください。', 'error');
+  }
+}
+
 async function connectToTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   tabId = tab?.id;
@@ -69,7 +89,9 @@ async function connectToTab() {
 async function init() {
   const settings = await loadSettings();
   fillSelect($('#modeSelect'), Object.entries(translationModes).map(([key, mode]) => [key, mode.label]), settings.mode);
-  fillSelect($('#targetSelect'), Object.entries(targetLanguages), settings.target);
+  fillSelect($('#targetSelect'), [...Object.entries(targetLanguages), [customTarget, 'その他…']], settings.target);
+  $('#customTarget').value = settings.customTarget;
+  $('#customTarget').hidden = settings.target !== customTarget;
   renderProvider(settings);
   await connectToTab();
   if (pageState) renderProvider(settings);
@@ -78,14 +100,37 @@ async function init() {
     await chrome.storage.local.set({ provider: button.dataset.provider });
     renderProvider(await loadSettings());
   }));
-  $('#modeSelect').addEventListener('change', () => chrome.storage.local.set({ mode: $('#modeSelect').value }));
-  $('#targetSelect').addEventListener('change', () => chrome.storage.local.set({ target: $('#targetSelect').value }));
+  $('#modeSelect').addEventListener('change', async () => {
+    await chrome.storage.local.set({ mode: $('#modeSelect').value });
+    retranslate();
+  });
+  let retranslateTimer;
+  $('#targetSelect').addEventListener('change', async () => {
+    const target = $('#targetSelect').value;
+    await chrome.storage.local.set({ target });
+    $('#customTarget').hidden = target !== customTarget;
+    if (target === customTarget) $('#customTarget').focus();
+    retranslate();
+  });
+  // A typed language name is applied once typing pauses, or at once on Enter.
+  $('#customTarget').addEventListener('input', async () => {
+    clearTimeout(retranslateTimer);
+    await chrome.storage.local.set({ customTarget: $('#customTarget').value.trim() });
+    retranslateTimer = setTimeout(retranslate, 1000);
+  });
+  $('#customTarget').addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    clearTimeout(retranslateTimer);
+    if (pageTranslated()) retranslate();
+    else $('#actionButton').click();
+  });
   $('#openOptions').addEventListener('click', () => chrome.runtime.openOptionsPage());
   $('#unlockPassphrase').addEventListener('keydown', (event) => { if (event.key === 'Enter') $('#actionButton').click(); });
   $('#actionButton').addEventListener('click', async () => {
-    const restore = pageState && (pageState.status === 'translating' || pageState.status === 'translated' || (pageState.status === 'error' && pageState.done));
+    const restore = pageTranslated();
     if (!restore) {
       let current = await loadSettings();
+      if (!targetLanguageName(current)) { showStatus('翻訳先の言語名を入力してください。', 'warn'); $('#customTarget').focus(); return; }
       if (current.locked && current.lockMethod === 'passphrase') {
         const passphrase = $('#unlockPassphrase').value;
         if (!passphrase) { $('#unlockPassphrase').focus(); return; }

@@ -13,8 +13,12 @@ if (!window.__myLingoLoaded) {
   const CONCURRENCY = 3;
 
   const originals = new Map(); // Text node -> original text, for restoring.
+  // Translation -> original text. Some pages copy or re-render text into new
+  // nodes, which `originals` does not know; restoring looks those up here so
+  // a retranslation never starts from already translated text.
+  const sources = new Map();
   let seen = new WeakSet(); // Nodes already queued, so dynamic content is not translated twice.
-  let state = { status: 'idle', done: 0, total: 0, error: '', target: '' };
+  let state = { status: 'idle', done: 0, total: 0, error: '', target: '', mode: '' };
   let generation = 0; // Bumped on restore so late replies are ignored.
   let observer = null; // MutationObserver for content added after translation starts.
   let visibility = null; // IntersectionObserver for text approaching the viewport.
@@ -34,18 +38,12 @@ if (!window.__myLingoLoaded) {
     chrome.runtime.sendMessage({ type: 'status', ...state }).catch(() => {});
   }
 
-  function detectPageTarget() {
-    const lang = (document.documentElement.lang || '').toLowerCase();
-    if (lang.startsWith('ja')) return 'en';
-    if (lang) return 'ja';
-    const sample = (document.body?.innerText || '').slice(0, 4000);
-    const kana = (sample.match(/[぀-ヿ]/g) || []).length;
-    return kana > sample.length * 0.05 ? 'en' : 'ja';
-  }
-
   function alreadyInTarget(text, target) {
-    if (target === 'ja') return /[぀-ヿ]/.test(text);
-    return /^[\x00-\x7f -⁯]*$/.test(text);
+    // Only skips text that is clearly in the target already; for other
+    // languages the model returns such segments unchanged.
+    if (target === 'Japanese') return /[぀-ヿ]/.test(text);
+    if (target === 'English') return /^[\x00-\x7f -⁯]*$/.test(text);
+    return false;
   }
 
   function shouldSkipElement(element) {
@@ -66,6 +64,8 @@ if (!window.__myLingoLoaded) {
       acceptNode(node) {
         if (seen.has(node) || originals.has(node)) return NodeFilter.FILTER_REJECT;
         const text = node.data.trim();
+        // A copy of our own translation; restoring puts its original back.
+        if (sources.has(text)) return NodeFilter.FILTER_REJECT;
         if (text.length < 2 || !/\p{L}/u.test(text) || alreadyInTarget(text, target)) return NodeFilter.FILTER_REJECT;
         return shouldSkipElement(node.parentElement) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
       }
@@ -143,6 +143,7 @@ if (!window.__myLingoLoaded) {
     const leading = original.match(/^\s*/)[0], trailing = original.match(/\s*$/)[0];
     if (!originals.has(node)) originals.set(node, original);
     node.data = leading + translated.trim() + trailing;
+    sources.set(translated.trim(), (originals.get(node) || original).trim());
   }
 
   function pump() {
@@ -202,10 +203,11 @@ if (!window.__myLingoLoaded) {
   async function translatePage() {
     if (state.status === 'translating' || state.status === 'translated') return state;
     const { settings } = await chrome.runtime.sendMessage({ type: 'getSettings' });
-    const target = settings.target === 'auto' ? detectPageTarget() : settings.target;
+    const { target, mode } = settings;
+    if (!target) return failStart(new Error('翻訳先の言語が未入力です。ポップアップの「その他」に言語名を入力してください。'));
     seen = new WeakSet(); // Lets a retry after an error pick up segments that failed.
     firstBatch = true;
-    setState({ status: 'translating', done: 0, total: 0, error: '', target });
+    setState({ status: 'translating', done: 0, total: 0, error: '', target, mode });
     visibility = new IntersectionObserver(onVisibility, { rootMargin: VIEWPORT_MARGIN });
     watchNodes(collectTextNodes(document.body, target));
     startObserver();
@@ -223,6 +225,16 @@ if (!window.__myLingoLoaded) {
     stopWatching();
     for (const [node, text] of originals) if (node.isConnected) node.data = text;
     originals.clear();
+    if (sources.size && document.body) {
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const node = walker.currentNode, text = node.data.trim();
+        if (!sources.has(text) || isOwnUi(node.parentElement)) continue;
+        const leading = node.data.match(/^\s*/)[0], trailing = node.data.match(/\s*$/)[0];
+        node.data = leading + sources.get(text) + trailing;
+      }
+    }
+    sources.clear();
     setState({ status: 'idle', done: 0, total: 0, error: '' });
     return state;
   }
