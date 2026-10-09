@@ -152,6 +152,10 @@
     return error?.message || '予期しないエラーが発生しました。';
   }
 
+  // 1Password and similar password managers take over passkey creation but
+  // cannot save passkeys for some pages (extension pages in particular).
+  const passkeyCreateHint = ' 1Password などのパスワード管理ツールは、このページのパスキーを保存できないことがあります。その画面でセキュリティキーなど別の方法を選んでブラウザ標準の画面で作成するか、パスフレーズで暗号化してください。';
+
   const escape = (text) => text.replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char]);
 
   // `handlers.state()` returns { method, unlocked, sessionUnlocked }:
@@ -223,6 +227,7 @@
         // A passkey prompt started without a click may be refused or dismissed;
         // the unlock button is right there, so stay quiet about it.
         error = quiet && caught?.name === 'NotAllowedError' ? '' : friendlyError(caught);
+        if (action === 'apply' && target === 'passkey' && caught?.name === 'NotAllowedError') error += passkeyCreateHint;
       }
       busy = false;
       await render();
