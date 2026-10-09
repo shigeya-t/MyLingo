@@ -95,6 +95,7 @@ const vaultPanel = MyLingoVault.mountPanel($('#vaultPanel'), {
     unlocked = await MyLingoVault.unlock(vault, passphrase);
     await chrome.storage.session.set({ apiKeys: unlocked.keys });
     await refresh();
+    await resumePending();
   },
   async lock() {
     unlocked = null;
@@ -117,4 +118,35 @@ const vaultPanel = MyLingoVault.mountPanel($('#vaultPanel'), {
 });
 
 $('#commitHash').textContent = globalThis.MYLINGO_COMMIT || '';
-refresh();
+// Opened by requestUnlock() (lib/providers.js) for a translation started
+// while locked: unlock right away, then go back and run it.
+const PENDING_TTL = 10 * 60 * 1000;
+
+async function pendingAction() {
+  const { pendingAction: pending } = await chrome.storage.session.get('pendingAction');
+  return pending && Date.now() - pending.at < PENDING_TTL ? pending : null;
+}
+
+async function resumePending() {
+  const pending = await pendingAction();
+  await chrome.storage.session.remove('pendingAction');
+  if (!pending) return;
+  const { tabId, frameId, message } = pending;
+  try {
+    await chrome.tabs.update(tabId, { active: true });
+    await chrome.scripting.executeScript({ target: { tabId, frameIds: [frameId] }, files: ['content.js'] });
+    await chrome.tabs.sendMessage(tabId, message, { frameId });
+  } catch {
+    toast('ロックを解除しました。翻訳を開始できなかったため、もう一度お試しください。');
+    return;
+  }
+  const self = await chrome.tabs.getCurrent();
+  if (self) chrome.tabs.remove(self.id);
+}
+
+refresh().then(async () => {
+  if (!keysLocked() || !(await pendingAction())) return;
+  $('#unlockNotice').hidden = false;
+  $('#vaultPanel').closest('section').scrollIntoView({ block: 'center' });
+  vaultPanel.startUnlock();
+});

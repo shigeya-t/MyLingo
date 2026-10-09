@@ -1,4 +1,4 @@
-import { configs, translationModes, targetLanguages, loadSettings, modelFor } from './lib/providers.js';
+import { configs, translationModes, targetLanguages, loadSettings, modelFor, requestUnlock } from './lib/providers.js';
 
 const $ = (selector) => document.querySelector(selector);
 let tabId = null;
@@ -18,7 +18,7 @@ function renderProvider(settings) {
   });
   $('#modelLabel').textContent = modelFor(settings);
   const hasKey = Boolean(settings.apiKeys?.[settings.provider]);
-  if (settings.locked) showStatus('APIキーがロックされています。右上の設定からロックを解除してください。', 'warn');
+  if (settings.locked) showStatus('APIキーがロックされています。翻訳を始めると、ロックを解除する画面が開きます。', 'warn');
   else if (!hasKey) showStatus(`${configs[settings.provider].name} のAPIキーが未設定です。右上の設定から入力してください。`, 'warn');
   else if (!pageState || pageState.status === 'idle') showStatus('');
 }
@@ -80,6 +80,7 @@ async function init() {
     const restore = pageState && (pageState.status === 'translating' || pageState.status === 'translated' || (pageState.status === 'error' && pageState.done));
     if (!restore) {
       const current = await loadSettings();
+      if (current.locked) { await requestUnlock(tabId, { type: 'translatePage' }); window.close(); return; }
       if (!current.apiKeys?.[current.provider]) { chrome.runtime.openOptionsPage(); return; }
       // The content script drives the translation, so the popup can close once it
       // has the request. Closing before the reply can drop the message while
