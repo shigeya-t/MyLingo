@@ -13,6 +13,8 @@ const translationModes = {
 };
 
 const { targets: targetLanguages, custom: customTarget } = MyLingoLanguages;
+const { t, languageLabel } = MyLingoI18n;
+MyLingoI18n.setLanguage(localStorage.getItem('lingo-ui-language'));
 
 let provider = localStorage.getItem('lingo-provider') || 'openai';
 let target = localStorage.getItem('lingo-target') || 'English';
@@ -21,6 +23,7 @@ let mode = localStorage.getItem('lingo-mode') || 'faithful';
 let timer;
 let latestRequest = 0; // Replies to older requests are dropped so they cannot overwrite newer text.
 let lastResult = null; // The translation on screen, or null while none is shown (empty, pending, error).
+let statusKey = 'status.ready'; // Kept as a key so switching the UI language can redraw it.
 const $ = (selector) => document.querySelector(selector);
 const source = $('#sourceText'), translation = $('#translation');
 
@@ -50,7 +53,7 @@ function detectLanguage(text) {
 
 function setLanguages(text) {
   const sourceLanguage = detectLanguage(text);
-  $('#sourceLang').textContent = text.trim() && sourceLanguage ? `${targetLanguages[sourceLanguage]}を検出` : '言語を自動判別';
+  $('#sourceLang').textContent = text.trim() && sourceLanguage ? t('web.detected', { lang: languageLabel(sourceLanguage) }) : t('web.autoDetect');
 }
 
 function setTarget(next) {
@@ -59,7 +62,7 @@ function setTarget(next) {
   renderTarget();
 }
 
-// The language name sent to the model, or '' when "その他" is chosen but left blank.
+// The language name sent to the model, or '' when "Other" is chosen but left blank.
 function targetLanguage() {
   return target === customTarget ? $('#customTarget').value.trim() : target;
 }
@@ -84,7 +87,7 @@ function setProvider(next) {
     button.setAttribute('aria-selected', active);
   });
   $('#modelLabel').textContent = currentModel();
-  $('#modelLabel').title = `${providerConfig().name} のモデル`;
+  $('#modelLabel').title = t('web.modelOf', { name: providerConfig().name });
   if ($('#settingsPanel').classList.contains('open')) fillSettings();
 }
 
@@ -93,7 +96,12 @@ function output(text) {
 }
 
 function outputEmpty() {
-  translation.innerHTML = '<div class="empty-state"><span class="empty-star">✦</span><p>ここに翻訳が表示されます</p></div>';
+  translation.innerHTML = `<div class="empty-state"><span class="empty-star">✦</span><p data-i18n="web.empty">${t('web.empty')}</p></div>`;
+}
+
+function setStatus(key) {
+  statusKey = key;
+  $('#translationStatus').textContent = t(key);
 }
 
 function systemPrompt(language) {
@@ -105,24 +113,19 @@ function wrapSource(text) {
 }
 
 function friendlyApiError(status, message) {
-  const detail = message || 'サービスから詳細なエラー情報を取得できませんでした。';
-  if (status === 401 || status === 403) {
-    return `APIキーを確認してください。\n選択中の ${providerConfig().name} 用のAPIキーが無効、または権限不足です。\n\n詳細: ${detail}`;
-  }
-  if (status === 429) {
-    return `利用上限に達しているか、短時間にリクエストが集中しています。しばらく待ってから再試行してください。\n\n詳細: ${detail}`;
-  }
-  if (status === 400 || status === 404) {
-    return `モデルまたはAPIの設定を確認してください。現在のモデル: ${currentModel()}\n\n詳細: ${detail}`;
-  }
-  return `翻訳サービスでエラーが発生しました（HTTP ${status}）。\n\n詳細: ${detail}`;
+  const name = providerConfig().name;
+  const summary = status === 401 || status === 403 ? t('error.auth', { name })
+    : status === 429 ? t('error.rateLimit')
+    : status === 400 || status === 404 ? t('error.model', { model: currentModel() })
+    : t('error.http', { name, status });
+  return `${summary}\n\n${t('error.detail', { detail: message || t('error.noDetail') })}`;
 }
 
 function friendlyNetworkError(error) {
   if (error instanceof TypeError && /fetch/i.test(error.message)) {
-    return `${providerConfig().name} に接続できませんでした。ネットワーク接続、ブラウザの拡張機能、またはブラウザからのAPI接続制限を確認してください。`;
+    return t('error.networkWeb', { name: providerConfig().name });
   }
-  return error.message || '予期しないエラーが発生しました。';
+  return error.message || t('error.unexpected');
 }
 
 function getOpenAIText(data) {
@@ -190,7 +193,7 @@ async function requestTranslation(text) {
   lastResult = null;
   if (vaultLocked()) {
     showLocked();
-    $('#translationStatus').textContent = 'APIキーがロックされています';
+    setStatus('status.locked');
     // Start unlocking on the first locked translation; after that, wait for
     // the pane's button so typing is not interrupted again.
     if (!unlockPrompted) {
@@ -202,18 +205,18 @@ async function requestTranslation(text) {
   }
   const key = apiKey(provider);
   if (!key) {
-    output('APIキーを設定すると翻訳できます。右上の設定から入力してください。');
-    $('#translationStatus').textContent = 'APIキーが未設定です';
+    output(t('web.noKey'));
+    setStatus('status.noKey');
     return;
   }
   const language = targetLanguage();
   if (!language) {
-    output('翻訳先の言語を入力してください。');
-    $('#translationStatus').textContent = '翻訳先が未入力です';
+    output(t('web.enterTarget'));
+    setStatus('status.noTarget');
     return;
   }
   const model = currentModel();
-  $('#translationStatus').textContent = '翻訳しています…';
+  setStatus('status.translating');
   output('');
   try {
     const id = `${provider}:${model}`;
@@ -227,14 +230,14 @@ async function requestTranslation(text) {
       result = await callProvider(key, model, language, text, false);
     }
     if (request !== latestRequest) return;
-    if (!result) throw new Error('翻訳結果を取得できませんでした。モデルからテキスト形式の応答が返らなかったため、設定のモデル名を確認してください。');
+    if (!result) throw new Error(t('error.emptyWeb'));
     lastResult = result.trim();
     output(lastResult);
-    $('#translationStatus').textContent = '翻訳完了';
+    setStatus('status.done');
   } catch (error) {
     if (request !== latestRequest) return;
     output(friendlyNetworkError(error));
-    $('#translationStatus').textContent = 'エラーが発生しました';
+    setStatus('status.error');
   }
 }
 
@@ -263,7 +266,8 @@ let unlockPrompted = false, unlocking = false;
 function showLocked() {
   if (translation.querySelector('.locked-state')) return; // Keep a half-typed passphrase.
   const passkey = vault.method === 'passkey';
-  translation.innerHTML = `<div class="locked-state"><p>APIキーはロックされています。</p>${passkey ? '' : '<input class="unlock-input" type="password" autocomplete="current-password" placeholder="パスフレーズ" aria-label="パスフレーズ" />'}<button type="button" class="unlock-button">${passkey ? 'パスキー（Touch ID など）で解除して翻訳' : '解除して翻訳'}</button><p class="unlock-error" role="alert"></p></div>`;
+  const unlockLabel = passkey ? 'web.unlockPasskey' : 'web.unlockPassphrase';
+  translation.innerHTML = `<div class="locked-state"><p data-i18n="web.locked">${t('web.locked')}</p>${passkey ? '' : `<input class="unlock-input" type="password" autocomplete="current-password" placeholder="${t('passphrase')}" aria-label="${t('passphrase')}" data-i18n-attr="placeholder:passphrase;aria-label:passphrase" />`}<button type="button" class="unlock-button" data-i18n="${unlockLabel}">${t(unlockLabel)}</button><p class="unlock-error" role="alert"></p></div>`;
   translation.querySelector('.unlock-button').addEventListener('click', () => unlockFromPane());
   translation.querySelector('.unlock-input')?.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); unlockFromPane(); } });
 }
@@ -277,7 +281,7 @@ async function unlockFromPane({ quiet = false } = {}) {
   if (error) error.textContent = '';
   try {
     unlocked = await MyLingoVault.unlock(vault, pane?.querySelector('.unlock-input')?.value);
-    toast('ロックを解除しました');
+    toast(t('unlocked'));
     vaultPanel.render();
     afterVaultChange();
   } catch (caught) {
@@ -321,7 +325,7 @@ const vaultPanel = MyLingoVault.mountPanel($('#vaultPanel'), {
 });
 
 function refreshInputInfo() {
-  $('#characterCount').textContent = `${source.value.length.toLocaleString('ja-JP')} 文字`;
+  $('#characterCount').textContent = t('web.characters', { count: source.value.length.toLocaleString(MyLingoI18n.language) });
   setLanguages(source.value.trim());
 }
 
@@ -331,7 +335,7 @@ function scheduleTranslation() {
   lastResult = null;
   const text = source.value.trim();
   refreshInputInfo();
-  if (!text) { outputEmpty(); $('#translationStatus').textContent = '準備完了'; return; }
+  if (!text) { outputEmpty(); setStatus('status.ready'); return; }
   timer = setTimeout(() => requestTranslation(text), 700);
 }
 
@@ -343,7 +347,8 @@ function fillSettings() {
   $('#apiKey').value = locked ? '' : apiKey(provider);
   $('#apiKey').disabled = locked;
   $('#toggleKey').disabled = locked;
-  $('#apiKey').placeholder = locked ? 'ロックを解除すると編集できます' : 'API key を貼り付け';
+  $('#apiKey').placeholder = t(locked ? 'settings.lockedPlaceholder' : 'settings.keyPlaceholder');
+  $('#toggleKey').textContent = t($('#apiKey').type === 'password' ? 'settings.show' : 'settings.hide');
   $('#modelInput').value = currentModel();
 }
 function toast(message) { $('#toast').textContent = message; $('#toast').classList.add('show'); setTimeout(() => $('#toast').classList.remove('show'), 1800); }
@@ -368,36 +373,49 @@ $('#swapButton').addEventListener('click', () => {
     refreshInputInfo();
     output(originalText);
     lastResult = originalText;
-    $('#translationStatus').textContent = '翻訳完了';
-    toast(`原文と翻訳を入れ替えました（翻訳先: ${targetLanguages[original]}）`);
+    setStatus('status.done');
+    toast(t('web.swapped', { lang: languageLabel(original) }));
   } else {
     source.value = text;
     scheduleTranslation();
-    toast('翻訳結果を原文にコピーしました');
+    toast(t('web.copiedToSource'));
   }
   source.focus();
 });
-document.querySelectorAll('[data-copy]').forEach((button) => button.addEventListener('click', async () => { const id = button.dataset.copy; const text = id === 'translation' ? translation.textContent.trim() : source.value; if (!text) return; await navigator.clipboard.writeText(text); toast('コピーしました'); }));
+document.querySelectorAll('[data-copy]').forEach((button) => button.addEventListener('click', async () => { const id = button.dataset.copy; const text = id === 'translation' ? translation.textContent.trim() : source.value; if (!text) return; await navigator.clipboard.writeText(text); toast(t('copied')); }));
 $('.settings-trigger').addEventListener('click', openSettings); $('.close-settings').addEventListener('click', closeSettings); $('#scrim').addEventListener('click', closeSettings);
-$('#toggleKey').addEventListener('click', () => { const isPassword = $('#apiKey').type === 'password'; $('#apiKey').type = isPassword ? 'text' : 'password'; $('#toggleKey').textContent = isPassword ? '隠す' : '表示'; });
+$('#toggleKey').addEventListener('click', () => { const isPassword = $('#apiKey').type === 'password'; $('#apiKey').type = isPassword ? 'text' : 'password'; $('#toggleKey').textContent = t(isPassword ? 'settings.hide' : 'settings.show'); });
 $('#saveSettings').addEventListener('click', async () => {
   const config = providerConfig();
   if (!vaultLocked()) await saveApiKey(provider, $('#apiKey').value.trim());
   localStorage.setItem(config.modelKey, $('#modelInput').value.trim() || config.model);
-  $('#modelLabel').textContent = currentModel(); closeSettings(); toast(`${config.name} の設定を保存しました`); if (source.value.trim()) scheduleTranslation();
+  $('#modelLabel').textContent = currentModel(); closeSettings(); toast(t('web.savedProvider', { name: config.name })); if (source.value.trim()) scheduleTranslation();
 });
 $('#themeToggle').addEventListener('click', () => { const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light'; localStorage.setItem('lingo-theme', next); applyTheme(next); });
 $('#modeSelect').addEventListener('change', () => { mode = $('#modeSelect').value; localStorage.setItem('lingo-mode', mode); if (source.value.trim()) scheduleTranslation(); });
 $('#modeSelect').value = mode;
-$('#targetSelect').innerHTML = Object.entries(targetLanguages).map(([value, label]) => `<option value="${value}">${label}</option>`).join('') + `<option value="${customTarget}">その他…</option>`;
 $('#customTarget').value = localStorage.getItem('lingo-target-custom') || '';
-renderTarget();
 $('#targetSelect').addEventListener('change', () => {
   setTarget($('#targetSelect').value);
   if (target === customTarget && !$('#customTarget').value.trim()) { $('#customTarget').focus(); return; }
   if (source.value.trim()) scheduleTranslation();
 });
 $('#customTarget').addEventListener('input', () => { localStorage.setItem('lingo-target-custom', $('#customTarget').value.trim()); if (source.value.trim()) scheduleTranslation(); });
+
+// Redraws the text that is not marked with data-i18n.
+function renderLanguage() {
+  MyLingoI18n.apply();
+  $('#targetSelect').innerHTML = Object.keys(targetLanguages).map((value) => `<option value="${value}">${languageLabel(value)}</option>`).join('') + `<option value="${customTarget}">${t('target.other')}</option>`;
+  renderTarget();
+  refreshInputInfo();
+  $('#translationStatus').textContent = t(statusKey);
+  $('#modelLabel').title = t('web.modelOf', { name: providerConfig().name });
+  fillSettings();
+  vaultPanel.render();
+}
+MyLingoI18n.mountSwitch($('#langSwitch'), (language) => { localStorage.setItem('lingo-ui-language', language); renderLanguage(); });
+
 setProvider(provider);
+renderLanguage();
 initTheme();
 $('#commitHash').textContent = globalThis.MYLINGO_COMMIT || '';

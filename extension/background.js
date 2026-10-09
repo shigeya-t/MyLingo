@@ -1,14 +1,28 @@
-import { loadSettings, requestUnlock, targetLanguageName } from './lib/providers.js';
+import { loadSettings, requestUnlock, targetLanguageName, contentScripts } from './lib/providers.js';
 import { translateSegments, translateText } from './lib/translator.js';
 
 async function injectContentScript(tabId, frameIds) {
-  await chrome.scripting.executeScript({ target: frameIds ? { tabId, frameIds } : { tabId }, files: ['content.js'] });
+  await chrome.scripting.executeScript({ target: frameIds ? { tabId, frameIds } : { tabId }, files: contentScripts });
 }
 
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({ id: 'mylingo-selection', title: 'MyLingo で「%s」を翻訳', contexts: ['selection'] });
-  chrome.contextMenus.create({ id: 'mylingo-page', title: 'MyLingo でこのページを翻訳', contexts: ['page'] });
-});
+// Menu items and the toolbar title follow the UI language, so they are
+// rebuilt when it changes and at startup (the browser's language may have).
+// Runs are chained so overlapping rebuilds cannot create an item twice.
+let menuSetup = Promise.resolve();
+function setUpMenus() {
+  menuSetup = menuSetup.then(async () => {
+    await loadSettings();
+    const { t } = MyLingoI18n;
+    await chrome.contextMenus.removeAll();
+    chrome.contextMenus.create({ id: 'mylingo-selection', title: t('ext.menuSelection'), contexts: ['selection'] });
+    chrome.contextMenus.create({ id: 'mylingo-page', title: t('ext.menuPage'), contexts: ['page'] });
+    await chrome.action.setTitle({ title: t('ext.actionTitle') });
+  }).catch((error) => console.warn('MyLingo: could not set up the menus', error));
+}
+
+chrome.runtime.onInstalled.addListener(setUpMenus);
+chrome.runtime.onStartup.addListener(setUpMenus);
+chrome.storage.onChanged.addListener((changes, area) => { if (area === 'local' && changes.uiLanguage) setUpMenus(); });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!tab?.id) return;
@@ -24,7 +38,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       await chrome.tabs.sendMessage(tab.id, { type: 'translatePage' });
     }
   } catch (error) {
-    console.warn('MyLingo: このページでは実行できません', error);
+    console.warn('MyLingo: cannot run on this page', error);
   }
 });
 
@@ -40,11 +54,9 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
     }
     await chrome.tabs.sendMessage(tab.id, { type: 'toggle' });
   } catch (error) {
-    console.warn('MyLingo: このページでは実行できません', error);
+    console.warn('MyLingo: cannot run on this page', error);
   }
 });
-
-const missingTargetMessage = '翻訳先の言語が未入力です。ツールバーの MyLingo で「その他」の言語名を入力してください。';
 
 async function handleMessage(message, sender) {
   const settings = await loadSettings();
@@ -53,7 +65,7 @@ async function handleMessage(message, sender) {
   }
   if (message.type === 'translateText') {
     const target = targetLanguageName(settings);
-    if (!target) throw new Error(missingTargetMessage);
+    if (!target) throw new Error(MyLingoI18n.t('ext.missingTarget'));
     return { translation: await translateText(settings, message.text, target) };
   }
   if (message.type === 'getSettings') return { settings: { provider: settings.provider, mode: settings.mode, target: targetLanguageName(settings) } };
@@ -70,6 +82,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!['translateSegments', 'translateText', 'getSettings', 'status'].includes(message?.type)) return false;
   handleMessage(message, sender)
     .then(sendResponse)
-    .catch((error) => sendResponse({ error: error.message || '予期しないエラーが発生しました。' }));
+    .catch((error) => sendResponse({ error: error.message || MyLingoI18n.t('error.unexpected') }));
   return true;
 });

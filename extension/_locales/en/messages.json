@@ -1,0 +1,5 @@
+{
+  "description": { "message": "Translate the page you are viewing into English, Japanese or any language you like, switching between ChatGPT, Claude and Gemini." },
+  "actionTitle": { "message": "Translate the page with MyLingo" },
+  "toggleCommand": { "message": "Translate the page / show the original" }
+}

@@ -1,163 +1,176 @@
 # MyLingo
 
-ChatGPT、Claude、Gemini を切り替えて使える、シンプルなブラウザ翻訳ツールです。英語・日本語をはじめ、好きな言語へ翻訳できます。Webアプリと、表示中のWebページを翻訳するChrome拡張機能があります。
+English | [日本語](README.ja.md)
 
-![MyLingo の画面](assets/mylingo-screenshot.png)
+A simple browser translation tool that lets you switch between ChatGPT, Claude and Gemini. Translate into English, Japanese or any language you like. It comes as a web app and as a Chrome extension that translates the page you are viewing.
 
-## 特長
+![MyLingo screenshot](assets/mylingo-screenshot.png)
 
-- 原文の言語は自動判別。翻訳先はドロップダウンで選択（初期値は英語）し、一覧にない言語は「その他」で自由に入力
-- ChatGPT / Claude / Gemini の切り替え
-- ライトモードとダークモードを切り替え可能
-- 翻訳モードを選択可能（原文に忠実 / ネイティブらしい自然な訳 / ビジネス文書向け / 会話・SNS向け / 技術文書向け）
-- 原文と翻訳の入れ替えボタン（両欄の内容と翻訳先の言語を入れ替え。原文の言語は文字の種類から推定するため、アルファベットの言語は英語、漢字だけの文は日本語とみなします）
-- 翻訳先や翻訳モードを切り替えると、すぐに翻訳し直し
-- 入力から少し待つだけで自動翻訳（`⌘ / Ctrl + Enter` でも実行）
-- APIキーとモデル名をブラウザの `localStorage` にだけ保存（APIキーはパスキーまたはパスフレーズで暗号化可能）
-- ビルド不要の静的サイト。サーバーへデータを保存しません
+## Features
 
-## サーバーについて
+- Detects the source language automatically. Pick the target language from a dropdown (English by default), or type any other language under "Other"
+- Switch between ChatGPT / Claude / Gemini
+- Light and dark mode
+- Translation modes (Faithful / Natural / Business / Casual & social / Technical)
+- A swap button (swaps the two panes and the target language; the source language is guessed from the script, so Latin-script text counts as English and kanji-only text as Japanese)
+- Changing the target language or translation mode translates again right away
+- Translates automatically shortly after you stop typing (or press `⌘ / Ctrl + Enter`)
+- The UI is in English and Japanese: Japanese when your browser (Chrome) is set to Japanese, English otherwise. Switch with the small "EN / JA" toggle (your choice is remembered)
+- API keys and model names are stored only in the browser's `localStorage` (API keys can be encrypted with a passkey or passphrase)
+- A static site with no build step. Nothing is stored on a server
 
-アプリ本体にバックエンドサーバーは必要ありません。HTML、CSS、JavaScriptだけで動く静的サイトで、翻訳時はブラウザが各AIサービスのAPIへ直接アクセスします。
+## About the server
 
-### 必要なファイル
+The app needs no backend server. It is a static site made of HTML, CSS and JavaScript, and the browser calls each AI service's API directly when translating.
 
-Webアプリは `index.html` 1つだけでは動きません。リポジトリをまるごと置くか、少なくとも次のファイルを同じフォルダ構成で置いてください。
+### Required files
 
-| ファイル | 必須 | 役割 |
+The web app does not work with `index.html` alone. Deploy the whole repository, or at least the following files in the same folder layout.
+
+| File | Required | Purpose |
 | --- | --- | --- |
-| `index.html` | ○ | 画面 |
-| `styles.css` | ○ | 見た目 |
-| `app.js` | ○ | 翻訳処理の本体 |
-| `extension/lib/vault.js` | ○ | APIキーの暗号化（拡張機能と共用） |
-| `extension/lib/languages.js` | ○ | 翻訳先の言語一覧（拡張機能と共用） |
-| `assets/favicon.svg` | | タブのアイコン |
-| `extension/lib/version.js` | | コミットハッシュの表示（git管理外。なくても動きます） |
+| `index.html` | ✓ | Page |
+| `styles.css` | ✓ | Styles |
+| `app.js` | ✓ | Translation logic |
+| `extension/lib/i18n.js` | ✓ | UI text in English and Japanese (shared with the extension) |
+| `extension/lib/vault.js` | ✓ | API key encryption (shared with the extension) |
+| `extension/lib/languages.js` | ✓ | Target languages (shared with the extension) |
+| `assets/favicon.svg` | | Tab icon |
+| `extension/lib/version.js` | | Shows the commit hash (not tracked by git; optional) |
 
-フォントは Google Fonts から読み込みます。
+Fonts are loaded from Google Fonts.
 
-### localhost で開く
+### Serving on localhost
 
-`index.html` をファイルとして直接開いても使えますが、APIキーをパスキー（Touch ID など）で暗号化するには、https か `http://localhost` で開く必要があります。手元で使う場合は、リポジトリのフォルダで次のどちらかを実行し、ブラウザで `http://localhost:8000` を開いてください。
+You can open `index.html` directly as a file, but encrypting API keys with a passkey (Touch ID, etc.) requires https or `http://localhost`. To use it locally, run one of these in the repository folder and open `http://localhost:8000` in your browser.
 
 ```sh
-# Python（macOS には標準で入っています）
+# Python (preinstalled on macOS)
 python3 -m http.server 8000 --bind 127.0.0.1
 
 # Node.js
 npx serve -l 8000
 ```
 
-止めるときはターミナルで `Ctrl + C` を押します。
+Press `Ctrl + C` in the terminal to stop it.
 
-- アドレスは `http://127.0.0.1:8000` ではなく `http://localhost:8000` を使ってください。IPアドレスではパスキーを使えません。
-- 設定（APIキーなど）は開き方ごとに別々に保存されます。ファイルとして開いていたときの設定は引き継がれないので、入力し直してください。ポート番号を変えた場合も同様です。
+- Use `http://localhost:8000`, not `http://127.0.0.1:8000`. Passkeys do not work on IP addresses.
+- Settings (API keys, etc.) are stored separately for each origin. Settings saved while the page was opened as a file are not carried over, so enter them again. The same applies when you change the port.
 
-## 使い方
+## Usage
 
-1. 使いたいサービス（ChatGPT / Claude / Gemini）を選択します。
-2. 右上の設定（歯車）を開き、選択中のサービスのAPIキーを入力します。
-3. 必要に応じてモデル名を変更し、「保存する」を押します。
-4. 「原文」欄の左上で翻訳モードを選択します（省略時は「原文に忠実」）。
-5. 上部のドロップダウンで翻訳先の言語を選びます（初期値は英語）。一覧にない言語は「その他…」を選んで言語名を入力します。
-6. 左の欄に翻訳したい文章を入力します。原文の言語は自動で判別されます。
+1. Choose a service (ChatGPT / Claude / Gemini).
+2. Open Settings (the gear at the top right) and enter the API key for the selected service.
+3. Change the model name if needed and press "Save".
+4. Choose a translation mode at the top left of the "Original" pane ("Faithful" by default).
+5. Choose the target language from the dropdown at the top (English by default). For a language not in the list, choose "Other…" and type its name.
+6. Type the text to translate in the left pane. The source language is detected automatically.
 
-| サービス | 初期モデル |
+| Service | Default model |
 | --- | --- |
 | ChatGPT | `gpt-6-luna` |
 | Claude | `claude-haiku-5-5` |
 | Gemini | `gemini-3.5-flash-lite` |
 
-### コミットハッシュの表示
+### UI language
 
-Webアプリの設定パネルと拡張機能の設定画面の下部に、動いているコードのコミットハッシュが表示されます。ハッシュは git フックが `extension/lib/version.js`（git管理外）に書き出すので、クローン後に一度だけ次を実行してください。以降はコミット・チェックアウト・pull のたびに自動で更新されます。
+The UI is shown in Japanese when the browser's language is Japanese and in English otherwise. The "EN / JA" toggle (at the bottom right of the web app, and at the top of the extension's popup and settings page) switches it; the choice is saved per browser.
+
+### Showing the commit hash
+
+The bottom of the web app's settings panel and the extension's settings page shows the commit hash of the running code. A git hook writes it to `extension/lib/version.js` (not tracked by git), so run the following once after cloning. After that it updates automatically on every commit, checkout and pull.
 
 ```sh
 git config core.hooksPath .githooks && .githooks/write-version
 ```
 
-## Chrome拡張機能（Webページ翻訳）
+## Chrome extension (page translation)
 
-`extension/` フォルダには、表示中のWebページをまるごと翻訳するChrome拡張機能が入っています。Webアプリと同じく ChatGPT / Claude / Gemini を切り替えて使えます。
+The `extension/` folder contains a Chrome extension that translates the whole page you are viewing. Like the web app, it lets you switch between ChatGPT / Claude / Gemini.
 
-<img src="assets/extension-popup.png" alt="MyLingo Chrome拡張機能のポップアップ画面" width="340">
+<img src="assets/extension-popup.png" alt="MyLingo Chrome extension popup" width="340">
 
-### 主な機能
+### Features
 
-- ツールバーのポップアップから「このページを翻訳」「原文に戻す」を切り替え
-- ChatGPT / Claude / Gemini の切り替え、翻訳モードの選択（Webアプリと同じ5種類）
-- 翻訳先はWebアプリと同じ一覧から選択（初期値は英語）し、一覧にない言語は「その他」で自由に入力
-- 翻訳後にポップアップで翻訳先や翻訳モードを切り替えると、原文に戻してからすぐに翻訳し直し（ページ側が翻訳済みの文をコピー・再描画した部分も原文に戻します）
-- 表示中の部分から順に翻訳し、スクロールに合わせて続きを順次翻訳（ページ全体を一度に送らないので速く、APIの消費も少ない）
-- 「もっと見る」などで後から表示された内容も自動で翻訳
-- 1分あたりのリクエスト数を制限でき、429（利用上限）エラー時はサービスが指定する待ち時間の後に自動で再試行
-- テキストを選択して右クリック →「MyLingo で翻訳」で、選択部分だけを吹き出しに翻訳表示
-- `Alt + Shift + T` で翻訳 / 原文に戻す を切り替え
-- 入力欄・コードブロック・`translate="no"` / `.notranslate` の要素は翻訳しない
+- Toggle "Translate this page" / "Show original" from the toolbar popup
+- The UI follows Chrome's language (Japanese or English). The "EN / JA" toggle in the popup and the settings page also changes the context menu and the selection bubble (the extension's description and the shortcut's description follow Chrome's language)
+- Switch between ChatGPT / Claude / Gemini and choose a translation mode (the same five as the web app)
+- Choose the target language from the same list as the web app (English by default), or type any other language under "Other"
+- Changing the target language or translation mode in the popup after translating restores the original and translates again right away (including text the page copied or re-rendered from the translation)
+- Translates what is on screen first and the rest as you scroll (faster, and uses less of your API quota than sending the whole page at once)
+- Also translates content that appears later, e.g. after "Show more"
+- Limits requests per minute, and on a 429 (rate limit) error retries automatically after the wait the service asks for
+- Select text, right-click and choose "Translate … with MyLingo" to see just that part translated in a bubble
+- `Alt + Shift + T` toggles between translation and the original
+- Does not translate input fields, code blocks, or elements marked `translate="no"` / `.notranslate`
 
-### インストール
+### Installation
 
-1. Chromeで `chrome://extensions` を開き、右上の「デベロッパーモード」をオンにします。
-2. 「パッケージ化されていない拡張機能を読み込む」を押し、このリポジトリの `extension` フォルダを選択します。
-3. ツールバーの MyLingo アイコン → 歯車から設定画面を開き、使うサービスのAPIキー（必要ならモデル名も）を入力して保存します。
+1. Open `chrome://extensions` in Chrome and turn on "Developer mode" at the top right.
+2. Click "Load unpacked" and select this repository's `extension` folder.
+3. Open the settings page from the MyLingo toolbar icon → gear, enter the API key (and model name if needed) for the services you use, and save.
 
-拡張機能の設定は `chrome.storage.local` に保存されるため、Webアプリとは別に入力が必要です。
+The extension stores its settings in `chrome.storage.local`, so you need to enter them separately from the web app.
 
-リポジトリを更新（pull・ブランチの切り替えなど）したら、`chrome://extensions` で MyLingo の再読み込みボタン（↻）を押してください。ポップアップや設定画面は開くたびに新しいファイルを読み込みますが、翻訳を行うバックグラウンド（Service Worker）は再読み込みするまで古いコードのまま動くため、食い違いでエラーになることがあります。再読み込みするとAPIキーの暗号化のロックも掛かり直します。
+After updating the repository (pull, switching branches, etc.), press MyLingo's reload button (↻) in `chrome://extensions`. The popup and settings page load the new files each time they open, but the background service worker that does the translating keeps running the old code until it is reloaded, and the mismatch can cause errors. Reloading also locks encrypted API keys again.
 
-### Gemini の無料枠について
+### About Gemini's free tier
 
-Gemini APIの無料枠には1分あたりのリクエスト数の上限（例: `gemini-3.5-flash-lite` は 15回/分）があります。拡張機能は初期設定で Gemini へのリクエストを 12回/分 に抑え、上限に達した場合も待ってから自動で再試行します。それでもエラーになる場合は、設定画面の「1分あたりの最大リクエスト数」を下げてください。1日あたりの上限に達した場合は、翌日まで待つか有料プランに切り替える必要があります。
+Gemini API's free tier limits requests per minute (e.g. 15 per minute for `gemini-3.5-flash-lite`). By default the extension keeps Gemini requests to 12 per minute, and when the limit is hit it waits and retries automatically. If you still see errors, lower "Max requests per minute" on the settings page. If you hit the daily limit, wait until the next day or switch to a paid plan.
 
-### しくみ
+### How it works
 
-ページのテキストを要素ごとに取り出し、画面内（と少し先）に入った部分だけを、画面に近い順にまとめてAIへ送って翻訳結果に差し替えます（HTMLの構造は変えません）。APIへの通信は拡張機能のバックグラウンド（Service Worker）から行うため、閲覧中サイトの設定に影響されません。ページへのアクセス権は `activeTab` のみで、翻訳を実行したタブにだけ一時的に許可されます。
+The extension extracts the page's text element by element and sends only the parts on screen (and a little beyond), closest to the viewport first, to the AI in batches, then replaces them with the translations (without changing the HTML structure). API calls are made from the extension's background service worker, so they are not affected by the site's settings. Page access is limited to `activeTab`, which is granted temporarily only to the tab you translate.
 
-## APIキーについて
+## About API keys
 
-このアプリはバックエンドを持たず、ブラウザから各AIサービスのAPIへ直接リクエストします。APIキーは `localStorage` に保存され、リポジトリに含まれることはありません。
+This app has no backend; the browser sends requests directly to each AI service's API. API keys are stored in `localStorage` and are never part of the repository.
 
-### APIキーの暗号化
+### Encrypting API keys
 
-設定画面の「APIキーの暗号化」で、APIキーの保存方法を「暗号化しない（初期設定）」「パスキーで暗号化」「パスフレーズで暗号化」から選べます（Webアプリ・拡張機能とも）。あとから別の方法に変えることもできます（ロック解除中のみ）。
+Under "API key encryption" in Settings, choose how API keys are stored: "Do not encrypt" (default), "Encrypt with a passkey" or "Encrypt with a passphrase" (in both the web app and the extension). You can switch to another method later (only while unlocked).
 
-- **パスキー（Touch ID など）**: WebAuthn の PRF 拡張で認証器から暗号鍵を取り出します。Chrome 116 以降・Safari 18 以降で、対応する認証器が必要です。Webアプリは https（ドメイン名）または `http://localhost` で開いたときだけ使えます（`index.html` をファイルとして直接開いた場合は使えません）。
-  - 1Password などのパスワード管理ツールは、拡張機能の設定画面（`chrome-extension://`）用のパスキーを保存できないことがあります（「パスキーを保存できません」と表示される）。その場合は次のどれかを試してください。
-    - パスワード管理ツールの画面でセキュリティキーなど別の方法を選び、ブラウザ標準の画面で Touch ID を使って作成する（パスキーは Chrome または iCloud キーチェーンに保存されます）。
-    - 1Password の設定（ツールバーのアイコンを右クリック →「設定」→「自動入力と保存」）で「Offer to save and sign in with passkeys」（パスキーの保存とサインインを提案する項目）を一時的にオフにして作成する。ロック解除のときも同じ設定が必要になる場合があります。
-    - パスフレーズで暗号化し、パスフレーズを 1Password に保管する。
-- **パスフレーズ**: PBKDF2（SHA-256、60万回）で暗号鍵を作ります。パスキーを使えない環境向けです。
+- **Passkey (Touch ID, etc.)**: Uses the WebAuthn PRF extension to obtain an encryption key from the authenticator. Requires Chrome 116+ or Safari 18+ and a supporting authenticator. In the web app it only works over https (with a domain name) or at `http://localhost` (not when `index.html` is opened as a file).
+  - Password managers such as 1Password sometimes cannot save a passkey for the extension's settings page (`chrome-extension://`) and report that the passkey cannot be saved. In that case, try one of the following:
+    - In the password manager's dialog, choose another option such as a security key, and create the passkey with Touch ID in the browser's own dialog (it is saved in Chrome or iCloud Keychain).
+    - In 1Password's settings (right-click the toolbar icon → "Settings" → "Autofill & save"), temporarily turn off "Offer to save and sign in with passkeys" while creating it. The same may be needed when unlocking.
+    - Encrypt with a passphrase and keep the passphrase in 1Password.
+- **Passphrase**: Derives the encryption key with PBKDF2 (SHA-256, 600,000 iterations). For environments where passkeys are not available.
 
-キーは AES-GCM で暗号化され、平文のキーは保存されなくなります。Webアプリはページを開くたびに、拡張機能はブラウザを起動するたびに（設定画面で）ロックの解除が必要です。拡張機能は解除したキーをブラウザを閉じるまで `chrome.storage.session`（メモリ上）に保持します。ロック中に翻訳しようとすると、そのままロック解除が始まり（パスキーなら認証画面、パスフレーズなら入力欄）、解除すると翻訳を続けます。Webアプリは翻訳欄で解除します。拡張機能は、パスフレーズならポップアップで、パスキーなら自動で開く小さな解除用ウィンドウで解除します（Chrome はパスキーの認証画面を出すとポップアップを閉じてしまうため）。パスキーをなくしたりパスフレーズを忘れたりすると復号できないため、キーそのものは 1Password やキーチェーンにも保管しておいてください。
+Keys are encrypted with AES-GCM, and plaintext keys are no longer stored. The web app needs unlocking every time the page is opened, the extension every time the browser starts (on the settings page). The extension keeps unlocked keys in `chrome.storage.session` (in memory) until the browser closes. Trying to translate while locked starts unlocking right away (the authentication prompt for a passkey, an input field for a passphrase) and continues the translation once unlocked. The web app unlocks in the translation pane. The extension unlocks in the popup for a passphrase, and for a passkey in a small unlock window that opens automatically (Chrome closes the popup when it shows the passkey prompt). If you lose the passkey or forget the passphrase, the keys cannot be decrypted, so keep the keys themselves in 1Password or your keychain as well.
 
-暗号化で防げるのは、ブラウザの保存データを読まれたりコピーされたりした場合です。ロック解除中にページへ悪意あるスクリプトが入り込んだ場合（XSS）は防げません。
+Encryption protects against the browser's stored data being read or copied. It does not protect against malicious scripts injected into the page while unlocked (XSS).
 
-> **注意:** ブラウザアプリにAPIキーを保存する方式は、個人利用・ローカル利用を想定しています。
-> `localStorage` はブラウザごとに分離されますが、公開サイトにするとコード改ざんやXSSが起きた際に全利用者のキーが一斉に漏洩するリスクがあります。
+> **Note:** Storing API keys in a browser app is meant for personal, local use.
+> `localStorage` is isolated per browser, but on a public site, tampered code or XSS could leak every user's keys at once.
 
-## ファイル構成
+## Files
 
 ```
 .
-├── index.html   # 画面構造
-├── styles.css   # レスポンシブなダーク/ライトUI
-├── app.js       # 翻訳・設定・各API接続
-├── AGENTS.md    # AIコーディングエージェント向けの開発メモ
-├── assets/      # アイコン・README 用の画像
-├── .githooks/   # コミットハッシュを version.js に書き出すフック
-└── extension/   # Chrome拡張機能（Webページ翻訳）
+├── index.html   # Page structure
+├── styles.css   # Responsive dark/light UI
+├── app.js       # Translation, settings and API calls
+├── README.md    # README in English (this file)
+├── README.ja.md # README in Japanese
+├── AGENTS.md    # Development notes for AI coding agents
+├── assets/      # Icons and images for the README
+├── .githooks/   # Hooks that write the commit hash to version.js
+└── extension/   # Chrome extension (page translation)
     ├── manifest.json
-    ├── background.js    # API呼び出し・右クリックメニュー・ショートカット
-    ├── content.js       # ページ内テキストの抽出・差し替え・選択翻訳の吹き出し
-    ├── popup.html/js    # ツールバーのポップアップ
-    ├── options.html/js  # APIキー・モデルの設定画面
-    ├── unlock.html/js   # パスキーでロック解除する小さなウィンドウ
+    ├── background.js    # API calls, context menu, shortcut
+    ├── content.js       # Extracts and replaces page text, selection bubble
+    ├── popup.html/js    # Toolbar popup
+    ├── options.html/js  # Settings page for API keys and models
+    ├── unlock.html/js   # Small window for unlocking with a passkey
     ├── ui.css
     ├── lib/
-    │   ├── providers.js   # サービス設定・設定の読み込み
-    │   ├── translator.js  # 翻訳リクエスト・レート制限・再試行
-    │   ├── vault.js       # APIキーの暗号化（Webアプリと共用）
-    │   ├── languages.js   # 翻訳先の言語一覧（Webアプリと共用）
-    │   └── version.js     # コミットハッシュ（git管理外・自動生成）
+    │   ├── providers.js   # Service settings, loading settings
+    │   ├── translator.js  # Translation requests, rate limiting, retries
+    │   ├── i18n.js        # UI text in English and Japanese (shared with the web app)
+    │   ├── vault.js       # API key encryption (shared with the web app)
+    │   ├── languages.js   # Target languages (shared with the web app)
+    │   └── version.js     # Commit hash (not tracked by git; generated)
+    ├── _locales/        # Manifest descriptions (English and Japanese)
     └── icons/
 ```

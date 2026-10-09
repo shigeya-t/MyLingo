@@ -1,6 +1,7 @@
-import { translationModes, targetLanguages, customTarget, targetLanguageName, loadSettings, modelFor, requestUnlock, unlockVault, missingKeyMessage } from './lib/providers.js';
+import { translationModes, targetLanguages, customTarget, targetLanguageName, loadSettings, modelFor, requestUnlock, unlockVault, missingKeyMessage, contentScripts } from './lib/providers.js';
 
 const $ = (selector) => document.querySelector(selector);
+const t = (key, params) => MyLingoI18n.t(key, params);
 let tabId = null;
 let pageState = null;
 
@@ -22,8 +23,8 @@ function renderProvider(settings) {
   // because Chrome closes the popup when it shows its passkey dialog.
   const passphrase = settings.locked && settings.lockMethod === 'passphrase';
   $('#unlockPassphrase').hidden = !passphrase;
-  if (passphrase) showStatus('APIキーがロックされています。パスフレーズを入力して翻訳してください。', 'warn');
-  else if (settings.locked) showStatus('APIキーがロックされています。翻訳を始めると、パスキーで解除する画面が開きます。', 'warn');
+  if (passphrase) showStatus(t('popup.lockedPassphrase'), 'warn');
+  else if (settings.locked) showStatus(t('popup.lockedPasskey'), 'warn');
   else if (!hasKey) showStatus(missingKeyMessage(settings), 'warn');
   else if (!pageState || pageState.status === 'idle') showStatus('');
 }
@@ -41,16 +42,16 @@ function renderPage(state) {
   progress.hidden = state.status !== 'translating';
   if (state.total) $('#progressBar').style.width = `${Math.round((state.done / state.total) * 100)}%`;
   if (state.status === 'translating') {
-    button.textContent = '翻訳を中止して原文に戻す';
-    showStatus(state.total ? `表示中の部分を翻訳しています… ${state.done} / ${state.total}` : '表示中の部分を翻訳しています…');
+    button.textContent = t('popup.stop');
+    showStatus(state.total ? t('popup.translatingCount', { done: state.done, total: state.total }) : t('popup.translating'));
   } else if (state.status === 'translated') {
-    button.textContent = '原文に戻す';
-    showStatus(state.total ? `表示中の ${state.total} 箇所を翻訳しました。スクロールすると続きを順次翻訳します。` : '表示中に翻訳が必要なテキストはありません。スクロールすると続きを翻訳します。', 'ok');
+    button.textContent = t('popup.restore');
+    showStatus(state.total ? t('popup.translated', { total: state.total }) : t('popup.nothing'), 'ok');
   } else if (state.status === 'error') {
-    button.textContent = state.done ? '原文に戻す' : 'もう一度翻訳';
+    button.textContent = t(state.done ? 'popup.restore' : 'popup.retry');
     showStatus(state.error, 'error');
   } else {
-    button.textContent = 'このページを翻訳';
+    button.textContent = t('popup.translate');
   }
 }
 
@@ -70,7 +71,7 @@ async function retranslate() {
     await chrome.tabs.sendMessage(tabId, { type: 'restorePage' });
     renderPage(await chrome.tabs.sendMessage(tabId, { type: 'translatePage' }));
   } catch {
-    showStatus('再翻訳できませんでした。ページを再読み込みしてからもう一度お試しください。', 'error');
+    showStatus(t('popup.retranslateFailed'), 'error');
   }
 }
 
@@ -78,18 +79,22 @@ async function connectToTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   tabId = tab?.id;
   try {
-    await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] });
+    await chrome.scripting.executeScript({ target: { tabId }, files: contentScripts });
     renderPage(await chrome.tabs.sendMessage(tabId, { type: 'getStatus' }));
   } catch {
     $('#actionButton').disabled = true;
-    showStatus('このページ（ブラウザの内部ページやWebストアなど）は翻訳できません。', 'warn');
+    showStatus(t('popup.unsupported'), 'warn');
   }
 }
 
 async function init() {
   const settings = await loadSettings();
-  fillSelect($('#modeSelect'), Object.entries(translationModes).map(([key, mode]) => [key, mode.label]), settings.mode);
-  fillSelect($('#targetSelect'), [...Object.entries(targetLanguages), [customTarget, 'その他…']], settings.target);
+  MyLingoI18n.apply();
+  $('#actionButton').textContent = t('popup.translate');
+  // Everything here comes from storage and the tab, so reloading redraws it in the new language.
+  MyLingoI18n.mountSwitch($('#langSwitch'), async (language) => { await chrome.storage.local.set({ uiLanguage: language }); location.reload(); });
+  fillSelect($('#modeSelect'), Object.keys(translationModes).map((key) => [key, t(`mode.${key}`)]), settings.mode);
+  fillSelect($('#targetSelect'), [...Object.keys(targetLanguages).map((key) => [key, MyLingoI18n.languageLabel(key)]), [customTarget, t('target.other')]], settings.target);
   $('#customTarget').value = settings.customTarget;
   $('#customTarget').hidden = settings.target !== customTarget;
   renderProvider(settings);
@@ -130,7 +135,7 @@ async function init() {
     const restore = pageTranslated();
     if (!restore) {
       let current = await loadSettings();
-      if (!targetLanguageName(current)) { showStatus('翻訳先の言語名を入力してください。', 'warn'); $('#customTarget').focus(); return; }
+      if (!targetLanguageName(current)) { showStatus(t('popup.enterTarget'), 'warn'); $('#customTarget').focus(); return; }
       if (current.locked && current.lockMethod === 'passphrase') {
         const passphrase = $('#unlockPassphrase').value;
         if (!passphrase) { $('#unlockPassphrase').focus(); return; }
@@ -150,14 +155,14 @@ async function init() {
       // has the request. Closing before the reply can drop the message while
       // Chrome is still opening the channel to the tab.
       $('#actionButton').disabled = true;
-      showStatus('翻訳を開始しています…');
+      showStatus(t('popup.starting'));
       try {
         const state = await chrome.tabs.sendMessage(tabId, { type: 'translatePage' });
         if (state?.status === 'error') { renderPage(state); return; }
         window.close();
       } catch {
         renderPage(pageState || { status: 'idle' });
-        showStatus('翻訳を開始できませんでした。ページを再読み込みしてからもう一度お試しください。', 'error');
+        showStatus(t('popup.startFailed'), 'error');
       }
       return;
     }
