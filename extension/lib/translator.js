@@ -15,6 +15,12 @@ class RateLimitError extends FatalTranslationError {
   constructor(message, retryAfterMs) { super(message); this.retryAfterMs = retryAfterMs; }
 }
 
+// The reply stopped at the output limit. A smaller batch can still fit.
+class TruncatedError extends Error {}
+
+// Room for the translation, which can be longer than the original.
+const maxOutputTokens = (text) => Math.min(16000, 1024 + text.length * 3);
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const MAX_RETRIES = 3;
 const MAX_RETRY_WAIT_MS = 60000;
@@ -136,13 +142,18 @@ async function sendRequest(provider, model, key, system, user, maxTokens, fast) 
     const body = { model, instructions: system, input: user };
     if (fast) body.reasoning = { effort: reasoningEffort(model) };
     const data = await postJSON(provider, model, 'https://api.openai.com/v1/responses', { Authorization: `Bearer ${key}` }, body);
+    if (data.incomplete_details?.reason === 'max_output_tokens') throw new TruncatedError(t('error.truncated'));
     text = getOpenAIText(data);
   } else if (provider === 'anthropic') {
     const data = await postJSON(provider, model, 'https://api.anthropic.com/v1/messages', { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, { model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] });
+    if (data.stop_reason === 'max_tokens') throw new TruncatedError(t('error.truncated'));
     text = (data.content || []).filter((part) => part.type === 'text').map((part) => part.text || '').join('');
   } else {
     const data = await postJSON(provider, model, `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, { 'x-goog-api-key': key }, { systemInstruction: { parts: [{ text: system }] }, contents: [{ parts: [{ text: user }] }], generationConfig: { temperature: 0.2, ...(fast && { thinkingConfig: thinkingConfig(model) }) } });
-    text = data.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('');
+    const candidate = data.candidates?.[0];
+    if (candidate?.finishReason === 'MAX_TOKENS') throw new TruncatedError(t('error.truncated'));
+    // Thought summaries come back as parts marked `thought`; only the answer is kept.
+    text = candidate?.content?.parts?.filter((part) => !part.thought).map((part) => part.text || '').join('');
   }
   if (!text) throw new FatalTranslationError(t('error.empty'));
   return text.trim();
@@ -169,12 +180,16 @@ export function parseSegments(text, count) {
 }
 
 // Translates an array of page segments. If the model returns a malformed or
-// misaligned array, the batch is split in half and retried so a single bad
-// reply never shifts translations onto the wrong text.
+// misaligned array, or runs out of room, the batch is split in half and
+// retried so a single bad reply never shifts translations onto the wrong text.
 export async function translateSegments(settings, segments, target) {
-  const maxTokens = Math.min(16000, 1024 + segments.join('').length * 3);
-  const reply = await callModel(settings, segmentsPrompt(settings, target, segments.length), JSON.stringify(segments), maxTokens);
-  const parsed = parseSegments(reply, segments.length);
+  let parsed = null;
+  try {
+    const reply = await callModel(settings, segmentsPrompt(settings, target, segments.length), JSON.stringify(segments), maxOutputTokens(segments.join('')));
+    parsed = parseSegments(reply, segments.length);
+  } catch (error) {
+    if (!(error instanceof TruncatedError)) throw error;
+  }
   if (parsed) return parsed;
   if (segments.length === 1) return [await translateText(settings, segments[0], target)];
   const middle = Math.ceil(segments.length / 2);
@@ -186,7 +201,8 @@ export async function translateSegments(settings, segments, target) {
 }
 
 // A closing tag inside the text would end the source early and let the rest
-// pass as instructions, so it is defused before wrapping.
+// pass as instructions. A zero-width space breaks it up; models tend to read
+// past a backslash and still see the tag.
 export function translateText(settings, text, target) {
-  return callModel(settings, textPrompt(settings, target), `<source>\n${text.replace(/<(\/source)/gi, '<\\$1')}\n</source>`, 4096);
+  return callModel(settings, textPrompt(settings, target), `<source>\n${text.replace(/<(\/source)/gi, '<\u200b$1')}\n</source>`, maxOutputTokens(text));
 }

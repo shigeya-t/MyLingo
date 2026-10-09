@@ -43,9 +43,9 @@ function initTheme() {
 // model itself works out the source language. Returns a targetLanguages key,
 // or null when the script does not point to one language.
 function detectLanguage(text) {
+  // Kanji without kana may just as well be Chinese, so it is left undecided.
   if (/[\u3040-\u30ff]/.test(text)) return 'Japanese';
   if (/[\uac00-\ud7af]/.test(text)) return 'Korean';
-  if (/[\u3400-\u9fff]/.test(text)) return 'Japanese'; // Kanji only, e.g. a short term
   if (/[\u0e00-\u0e7f]/.test(text)) return 'Thai';
   if (/[\u0400-\u04ff]/.test(text)) return 'Russian';
   if (/[a-z]/i.test(text)) return 'English';
@@ -110,10 +110,14 @@ function systemPrompt(language) {
 }
 
 // A closing tag inside the text would end the source early and let the rest
-// pass as instructions, so it is defused before wrapping.
+// pass as instructions. A zero-width space breaks it up; models tend to read
+// past a backslash and still see the tag.
 function wrapSource(text) {
-  return `<source>\n${text.replace(/<(\/source)/gi, '<\\$1')}\n</source>`;
+  return `<source>\n${text.replace(/<(\/source)/gi, '<\u200b$1')}\n</source>`;
 }
+
+// Room for the translation, which can be longer than the original.
+function maxOutputTokens(text) { return Math.min(16000, 1024 + text.length * 3); }
 
 function friendlyApiError(status, message) {
   const name = providerConfig().name;
@@ -174,12 +178,14 @@ async function callProvider(key, model, language, text, fast) {
     const response = await fetch('https://api.openai.com/v1/responses', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }, body: JSON.stringify(body) });
     const data = await response.json();
     if (!response.ok) throw new ApiError(response.status, data.error?.message);
+    if (data.incomplete_details?.reason === 'max_output_tokens') throw new Error(t('error.truncated'));
     return getOpenAIText(data);
   }
   if (provider === 'anthropic') {
-    const response = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, body: JSON.stringify({ model, max_tokens: 2048, system: systemPrompt(language), messages: [{ role: 'user', content: wrapSource(text) }] }) });
+    const response = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, body: JSON.stringify({ model, max_tokens: maxOutputTokens(text), system: systemPrompt(language), messages: [{ role: 'user', content: wrapSource(text) }] }) });
     const data = await response.json();
     if (!response.ok) throw new ApiError(response.status, data.error?.message);
+    if (data.stop_reason === 'max_tokens') throw new Error(t('error.truncated'));
     return (data.content || [])
       .filter((part) => part.type === 'text')
       .map((part) => part.text || '')
@@ -188,7 +194,10 @@ async function callProvider(key, model, language, text, fast) {
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify({ systemInstruction: { parts: [{ text: systemPrompt(language) }] }, contents: [{ parts: [{ text: wrapSource(text) }] }], generationConfig: { temperature: 0.2, ...(fast && { thinkingConfig: thinkingConfig(model) }) } }) });
   const data = await response.json();
   if (!response.ok) throw new ApiError(response.status, data.error?.message);
-  return data.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('');
+  const candidate = data.candidates?.[0];
+  if (candidate?.finishReason === 'MAX_TOKENS') throw new Error(t('error.truncated'));
+  // Thought summaries come back as parts marked `thought`; only the answer is kept.
+  return candidate?.content?.parts?.filter((part) => !part.thought).map((part) => part.text || '').join('');
 }
 
 async function requestTranslation(text) {
@@ -385,7 +394,7 @@ $('#swapButton').addEventListener('click', () => {
   }
   source.focus();
 });
-document.querySelectorAll('[data-copy]').forEach((button) => button.addEventListener('click', async () => { const id = button.dataset.copy; const text = id === 'translation' ? translation.textContent.trim() : source.value; if (!text) return; await navigator.clipboard.writeText(text); toast(t('copied')); }));
+document.querySelectorAll('[data-copy]').forEach((button) => button.addEventListener('click', async () => { const id = button.dataset.copy; const text = id === 'translation' ? lastResult : source.value; if (!text) return; await navigator.clipboard.writeText(text); toast(t('copied')); }));
 $('.settings-trigger').addEventListener('click', openSettings); $('.close-settings').addEventListener('click', closeSettings); $('#scrim').addEventListener('click', closeSettings);
 $('#toggleKey').addEventListener('click', () => { const isPassword = $('#apiKey').type === 'password'; $('#apiKey').type = isPassword ? 'text' : 'password'; $('#toggleKey').textContent = t(isPassword ? 'settings.hide' : 'settings.show'); });
 $('#saveSettings').addEventListener('click', async () => {
