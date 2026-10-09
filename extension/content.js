@@ -34,15 +34,6 @@ if (!window.__myLingoLoaded) {
     chrome.runtime.sendMessage({ type: 'status', ...state }).catch(() => {});
   }
 
-  function detectPageTarget() {
-    const lang = (document.documentElement.lang || '').toLowerCase();
-    if (lang.startsWith('ja')) return 'en';
-    if (lang) return 'ja';
-    const sample = (document.body?.innerText || '').slice(0, 4000);
-    const kana = (sample.match(/[぀-ヿ]/g) || []).length;
-    return kana > sample.length * 0.05 ? 'en' : 'ja';
-  }
-
   function alreadyInTarget(text, target) {
     if (target === 'ja') return /[぀-ヿ]/.test(text);
     return /^[\x00-\x7f -⁯]*$/.test(text);
@@ -202,7 +193,7 @@ if (!window.__myLingoLoaded) {
   async function translatePage() {
     if (state.status === 'translating' || state.status === 'translated') return state;
     const { settings } = await chrome.runtime.sendMessage({ type: 'getSettings' });
-    const target = settings.target === 'auto' ? detectPageTarget() : settings.target;
+    const { target } = settings;
     seen = new WeakSet(); // Lets a retry after an error pick up segments that failed.
     firstBatch = true;
     setState({ status: 'translating', done: 0, total: 0, error: '', target });

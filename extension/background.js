@@ -1,10 +1,6 @@
 import { loadSettings, requestUnlock } from './lib/providers.js';
 import { translateSegments, translateText } from './lib/translator.js';
 
-function detectTarget(text) {
-  return /[぀-ヿ㐀-龯]/.test(text) ? 'en' : 'ja';
-}
-
 async function injectContentScript(tabId, frameIds) {
   await chrome.scripting.executeScript({ target: frameIds ? { tabId, frameIds } : { tabId }, files: ['content.js'] });
 }
@@ -54,8 +50,7 @@ async function handleMessage(message, sender) {
     return { translations: await translateSegments(settings, message.segments, message.target) };
   }
   if (message.type === 'translateText') {
-    const target = settings.target === 'auto' ? detectTarget(message.text) : settings.target;
-    return { translation: await translateText(settings, message.text, target) };
+    return { translation: await translateText(settings, message.text, settings.target) };
   }
   if (message.type === 'getSettings') return { settings: { provider: settings.provider, mode: settings.mode, target: settings.target } };
   if (message.type === 'status' && sender.tab?.id) {

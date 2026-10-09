@@ -14,9 +14,9 @@ export const translationModes = {
   technical: { label: '技術文書向け', prompt: 'Phrase the translation using precise technical terminology, as it would appear in technical documentation, keeping domain-specific terms accurate and consistent.' }
 };
 
-export const targetLanguages = { auto: '自動（日本語⇄英語）', ja: '日本語', en: '英語' };
+export const targetLanguages = { en: '英語', ja: '日本語' };
 
-export const defaults = { provider: 'openai', mode: 'faithful', target: 'auto', apiKeys: {}, models: {}, rateLimits: {} };
+export const defaults = { provider: 'openai', mode: 'faithful', target: 'en', apiKeys: {}, models: {}, rateLimits: {} };
 
 // With encryption on, chrome.storage.local holds only the encrypted `vault`
 // (see lib/vault.js); the options page puts the decrypted keys in
@@ -24,6 +24,7 @@ export const defaults = { provider: 'openai', mode: 'faithful', target: 'auto', 
 export async function loadSettings() {
   const { vault, ...stored } = await chrome.storage.local.get([...Object.keys(defaults), 'vault']);
   const settings = { ...defaults, ...stored };
+  if (!targetLanguages[settings.target]) settings.target = defaults.target; // e.g. the removed 'auto'
   if (vault) {
     const { apiKeys } = await chrome.storage.session.get('apiKeys');
     settings.apiKeys = apiKeys || {};
