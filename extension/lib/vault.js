@@ -14,17 +14,33 @@
 
   class VaultError extends Error {}
 
-  let passkeySupport;
-  function passkeySupported() {
-    passkeySupport ??= (async () => {
-      if (!globalThis.isSecureContext || !globalThis.PublicKeyCredential) return false;
+  // WebAuthn only works on https pages (with a domain name), http://localhost
+  // and extension pages. Chrome treats file:// as a secure context, yet
+  // rejects passkeys there, so check the origin rather than isSecureContext.
+  function passkeyOriginProblem() {
+    const { protocol, hostname } = location;
+    if (protocol === 'chrome-extension:') return '';
+    if (protocol === 'file:') return 'ファイルとして開いたページでは使えません。https または http://localhost で開いてください。';
+    const isIp = /^[\d.]+$/.test(hostname) || hostname.includes(':');
+    if (protocol === 'https:' && !isIp) return '';
+    if (protocol === 'http:' && (hostname === 'localhost' || hostname.endsWith('.localhost'))) return '';
+    return 'このURLでは使えません。https（ドメイン名）または http://localhost で開いてください。';
+  }
+
+  // Resolves to '' when passkeys look usable, or to the reason they are not.
+  let passkeyProblem;
+  function passkeyUnavailableReason() {
+    passkeyProblem ??= (async () => {
+      const originProblem = passkeyOriginProblem();
+      if (originProblem) return originProblem;
+      if (!globalThis.isSecureContext || !globalThis.PublicKeyCredential) return 'このブラウザはパスキーに対応していません。';
       try {
         const capabilities = await PublicKeyCredential.getClientCapabilities?.();
-        if (capabilities && 'extension:prf' in capabilities) return capabilities['extension:prf'];
+        if (capabilities && 'extension:prf' in capabilities) return capabilities['extension:prf'] ? '' : 'このブラウザはパスキーによる暗号化（PRF）に対応していません。';
       } catch { /* Older browsers: fall through and find out when creating the passkey. */ }
-      return Boolean(await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable?.());
+      return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable?.() ? '' : 'この端末では Touch ID などの生体認証を使えません。';
     })();
-    return passkeySupport;
+    return passkeyProblem;
   }
 
   async function passphraseKey(passphrase, salt, iterations) {
@@ -119,7 +135,8 @@
     if (error instanceof VaultError) return error.message;
     if (error?.name === 'NotAllowedError') return '認証がキャンセルされたか、時間切れになりました。';
     if (error?.name === 'InvalidStateError') return 'このパスキーはすでに登録されています。';
-    if (error?.name === 'SecurityError' || error?.name === 'NotSupportedError') return 'この環境ではパスキーを使えません。パスフレーズで暗号化してください。';
+    if (error?.name === 'SecurityError') return `このページではパスキーを使えません（${error.message}）。https または http://localhost で開くか、パスフレーズで暗号化してください。`;
+    if (error?.name === 'NotSupportedError') return `この環境ではパスキーを作成できません（${error.message}）。パスフレーズで暗号化してください。`;
     return error?.message || '予期しないエラーが発生しました。';
   }
 
@@ -138,14 +155,14 @@
 
     async function render() {
       const { method, unlocked, sessionUnlocked } = handlers.state();
-      const passkey = await passkeySupported();
+      const passkeyReason = await passkeyUnavailableReason();
       const current = method || 'none', locked = Boolean(method && !unlocked);
       const choice = locked ? current : selected ?? current;
       const button = (action, label, primary) => `<button type="button" class="vault-button${primary ? ' primary' : ''}" data-vault="${action}"${busy ? ' disabled' : ''}>${label}</button>`;
       const option = (value, label, note, unavailable) => `<label class="vault-option"><input type="radio" name="vaultMethod" value="${value}"${value === choice ? ' checked' : ''}${unavailable || locked || busy ? ' disabled' : ''} /><span><strong>${label}</strong><small>${note}</small></span></label>`;
       let html = `<div class="vault-options" role="radiogroup" aria-label="APIキーの保存方法">
         ${option('none', '暗号化しない', 'これまでどおり、このブラウザにそのまま保存します。')}
-        ${option('passkey', 'パスキー（Touch ID など）で暗号化', passkey ? '使い始めるときに Touch ID などで解除します。' : 'このブラウザでは使えません。', !passkey && current !== 'passkey')}
+        ${option('passkey', 'パスキー（Touch ID など）で暗号化', passkeyReason ? escape(passkeyReason) : '使い始めるときに Touch ID などで解除します。', passkeyReason && current !== 'passkey')}
         ${option('passphrase', 'パスフレーズで暗号化', '使い始めるときにパスフレーズを入力して解除します。')}
       </div>`;
       if (locked) {
