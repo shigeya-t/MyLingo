@@ -12,6 +12,18 @@
   const toBase64 = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes)));
   const fromBase64 = (text) => Uint8Array.from(atob(text), (char) => char.charCodeAt(0));
 
+  // Browsers return WebAuthn binary values as ArrayBuffers, but password
+  // manager extensions that handle passkeys (1Password and others) may hand
+  // back base64url strings, arrays or buffers from another realm instead.
+  function toBytes(value) {
+    if (typeof value === 'string') return fromBase64(value.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(value.length / 4) * 4, '='));
+    if (ArrayBuffer.isView(value)) return new Uint8Array(value.buffer, value.byteOffset, value.byteLength).slice();
+    if (Object.prototype.toString.call(value) === '[object ArrayBuffer]') return new Uint8Array(value).slice();
+    if (Array.isArray(value)) return Uint8Array.from(value);
+    if (value && typeof value === 'object') return Uint8Array.from(Object.values(value));
+    throw new VaultError('パスキーから受け取ったデータの形式に対応していません。パスフレーズで暗号化してください。');
+  }
+
   class VaultError extends Error {}
 
   // WebAuthn only works on https pages (with a domain name), http://localhost
@@ -67,7 +79,7 @@
     } });
     const secret = assertion?.getClientExtensionResults().prf?.results?.first;
     if (!secret) throw prfUnsupported();
-    return secret;
+    return toBytes(secret);
   }
 
   async function createPasskey() {
@@ -83,9 +95,9 @@
     } });
     const prf = credential?.getClientExtensionResults().prf;
     if (!prf?.enabled && !prf?.results?.first) throw prfUnsupported();
-    const credentialId = new Uint8Array(credential.rawId);
+    const credentialId = toBytes(credential.rawId);
     // Some authenticators only evaluate the PRF on sign-in, not on creation.
-    const secret = prf.results?.first || await evaluatePrf(credentialId, prfSalt);
+    const secret = prf.results?.first ? toBytes(prf.results.first) : await evaluatePrf(credentialId, prfSalt);
     return { header: { method: 'passkey', credentialId: toBase64(credentialId), prfSalt: toBase64(prfSalt) }, key: await prfKey(secret) };
   }
 
