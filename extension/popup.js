@@ -59,13 +59,13 @@ function pageTranslated() {
   return Boolean(pageState && (pageState.status === 'translating' || pageState.status === 'translated' || (pageState.status === 'error' && pageState.done)));
 }
 
-// After the target language changes on a translated page, translate it again
+// After the target language or translation mode changes on a translated page, translate it again
 // right away instead of making the user restore and translate by hand.
 async function retranslate() {
   if (!pageTranslated()) return;
   const settings = await loadSettings();
   const target = targetLanguageName(settings);
-  if (!target || target === pageState.target || settings.locked) return;
+  if (!target || (target === pageState.target && settings.mode === pageState.mode) || settings.locked) return;
   try {
     await chrome.tabs.sendMessage(tabId, { type: 'restorePage' });
     renderPage(await chrome.tabs.sendMessage(tabId, { type: 'translatePage' }));
@@ -100,7 +100,10 @@ async function init() {
     await chrome.storage.local.set({ provider: button.dataset.provider });
     renderProvider(await loadSettings());
   }));
-  $('#modeSelect').addEventListener('change', () => chrome.storage.local.set({ mode: $('#modeSelect').value }));
+  $('#modeSelect').addEventListener('change', async () => {
+    await chrome.storage.local.set({ mode: $('#modeSelect').value });
+    retranslate();
+  });
   let retranslateTimer;
   $('#targetSelect').addEventListener('change', async () => {
     const target = $('#targetSelect').value;

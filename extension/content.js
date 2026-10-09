@@ -14,7 +14,7 @@ if (!window.__myLingoLoaded) {
 
   const originals = new Map(); // Text node -> original text, for restoring.
   let seen = new WeakSet(); // Nodes already queued, so dynamic content is not translated twice.
-  let state = { status: 'idle', done: 0, total: 0, error: '', target: '' };
+  let state = { status: 'idle', done: 0, total: 0, error: '', target: '', mode: '' };
   let generation = 0; // Bumped on restore so late replies are ignored.
   let observer = null; // MutationObserver for content added after translation starts.
   let visibility = null; // IntersectionObserver for text approaching the viewport.
@@ -196,11 +196,11 @@ if (!window.__myLingoLoaded) {
   async function translatePage() {
     if (state.status === 'translating' || state.status === 'translated') return state;
     const { settings } = await chrome.runtime.sendMessage({ type: 'getSettings' });
-    const { target } = settings;
+    const { target, mode } = settings;
     if (!target) return failStart(new Error('翻訳先の言語が未入力です。ポップアップの「その他」に言語名を入力してください。'));
     seen = new WeakSet(); // Lets a retry after an error pick up segments that failed.
     firstBatch = true;
-    setState({ status: 'translating', done: 0, total: 0, error: '', target });
+    setState({ status: 'translating', done: 0, total: 0, error: '', target, mode });
     visibility = new IntersectionObserver(onVisibility, { rootMargin: VIEWPORT_MARGIN });
     watchNodes(collectTextNodes(document.body, target));
     startObserver();
