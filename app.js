@@ -17,8 +17,9 @@ const { t, languageLabel } = MyLingoI18n;
 MyLingoI18n.setLanguage(localStorage.getItem('lingo-ui-language'));
 
 let provider = localStorage.getItem('lingo-provider') || 'openai';
-let target = localStorage.getItem('lingo-target') || 'English';
-if (target !== customTarget && !targetLanguages[target]) target = 'English';
+// Until a target is chosen it follows the UI language (see renderLanguage).
+let target = localStorage.getItem('lingo-target') || MyLingoI18n.defaultTarget();
+if (target !== customTarget && !targetLanguages[target]) target = MyLingoI18n.defaultTarget();
 let mode = localStorage.getItem('lingo-mode') || 'faithful';
 let timer;
 let latestRequest = 0; // Replies to older requests are dropped so they cannot overwrite newer text.
@@ -405,6 +406,7 @@ $('#customTarget').addEventListener('input', () => { localStorage.setItem('lingo
 // Redraws the text that is not marked with data-i18n.
 function renderLanguage() {
   MyLingoI18n.apply();
+  if (!localStorage.getItem('lingo-target')) target = MyLingoI18n.defaultTarget();
   $('#targetSelect').innerHTML = Object.keys(targetLanguages).map((value) => `<option value="${value}">${languageLabel(value)}</option>`).join('') + `<option value="${customTarget}">${t('target.other')}</option>`;
   renderTarget();
   refreshInputInfo();

@@ -8,7 +8,7 @@ A simple browser translation tool that lets you switch between ChatGPT, Claude a
 
 ## Features
 
-- Detects the source language automatically. Pick the target language from a dropdown (English by default), or type any other language under "Other"
+- Detects the source language automatically. Pick the target language from a dropdown (Japanese by default when the UI is in Japanese, English otherwise), or type any other language under "Other"
 - Switch between ChatGPT / Claude / Gemini
 - Light and dark mode
 - Translation modes (Faithful / Natural / Business / Casual & social / Technical)
@@ -63,7 +63,7 @@ Press `Ctrl + C` in the terminal to stop it.
 2. Open Settings (the gear at the top right) and enter the API key for the selected service.
 3. Change the model name if needed and press "Save".
 4. Choose a translation mode at the top left of the "Original" pane ("Faithful" by default).
-5. Choose the target language from the dropdown at the top (English by default). For a language not in the list, choose "Other…" and type its name.
+5. Choose the target language from the dropdown at the top (Japanese by default when the UI is in Japanese, English otherwise). For a language not in the list, choose "Other…" and type its name.
 6. Type the text to translate in the left pane. The source language is detected automatically.
 
 | Service | Default model |
@@ -95,7 +95,7 @@ The `extension/` folder contains a Chrome extension that translates the whole pa
 - Toggle "Translate this page" / "Show original" from the toolbar popup
 - The UI follows Chrome's language (Japanese or English). The "EN / JA" toggle in the popup and the settings page also changes the context menu and the selection bubble (the extension's description and the shortcut's description follow Chrome's language)
 - Switch between ChatGPT / Claude / Gemini and choose a translation mode (the same five as the web app)
-- Choose the target language from the same list as the web app (English by default), or type any other language under "Other"
+- Choose the target language from the same list as the web app (Japanese by default when the UI is in Japanese, English otherwise), or type any other language under "Other"
 - Changing the target language or translation mode in the popup after translating restores the original and translates again right away (including text the page copied or re-rendered from the translation)
 - Translates what is on screen first and the rest as you scroll (faster, and uses less of your API quota than sending the whole page at once)
 - Also translates content that appears later, e.g. after "Show more"

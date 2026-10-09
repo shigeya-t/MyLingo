@@ -395,6 +395,12 @@
     });
   }
 
+  // Target language used until the user picks one: Japanese for a Japanese
+  // UI, English otherwise.
+  function defaultTarget() {
+    return current === 'ja' ? 'Japanese' : 'English';
+  }
+
   // A small EN / JA switch. `onChange(language)` stores the choice and
   // re-renders the page.
   function mountSwitch(root, onChange) {
@@ -415,5 +421,5 @@
     return { render };
   }
 
-  globalThis.MyLingoI18n = { t, setLanguage, languageLabel, apply, mountSwitch, get language() { return current; } };
+  globalThis.MyLingoI18n = { t, setLanguage, languageLabel, defaultTarget, apply, mountSwitch, get language() { return current; } };
 })();

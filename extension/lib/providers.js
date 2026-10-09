@@ -20,14 +20,15 @@ import './i18n.js';
 
 export const { targets: targetLanguages, custom: customTarget } = globalThis.MyLingoLanguages;
 // Values saved by earlier versions, which offered only these (and 'auto').
-const legacyTargets = { en: 'English', ja: 'Japanese', auto: 'English' };
+const legacyTargets = { en: 'English', ja: 'Japanese', auto: '' };
 
 // The language name given to the model, or '' when "Other" is chosen but left blank.
 export function targetLanguageName(settings) {
   return settings.target === customTarget ? (settings.customTarget || '').trim() : settings.target;
 }
 
-export const defaults = { provider: 'openai', mode: 'faithful', target: 'English', customTarget: '', apiKeys: {}, models: {}, rateLimits: {}, uiLanguage: '' };
+// `target` left empty means MyLingoI18n.defaultTarget(), which follows the UI language.
+export const defaults = { provider: 'openai', mode: 'faithful', target: '', customTarget: '', apiKeys: {}, models: {}, rateLimits: {}, uiLanguage: '' };
 
 // With encryption on, chrome.storage.local holds only the encrypted `vault`
 // (see lib/vault.js); the options page puts the decrypted keys in
@@ -38,8 +39,8 @@ export async function loadSettings() {
   const { vault, ...stored } = await chrome.storage.local.get([...Object.keys(defaults), 'vault']);
   const settings = { ...defaults, ...stored };
   MyLingoI18n.setLanguage(settings.uiLanguage);
-  settings.target = legacyTargets[settings.target] || settings.target;
-  if (settings.target !== customTarget && !targetLanguages[settings.target]) settings.target = defaults.target;
+  settings.target = legacyTargets[settings.target] ?? settings.target;
+  if (settings.target !== customTarget && !targetLanguages[settings.target]) settings.target = MyLingoI18n.defaultTarget();
   if (vault) {
     const { apiKeys } = await chrome.storage.session.get('apiKeys');
     settings.apiKeys = apiKeys || {};

@@ -41,7 +41,7 @@ MyLingo は ChatGPT / Claude / Gemini を切り替えて使う翻訳ツールで
 
 ### 翻訳先の言語
 
-- 設定値は言語の英語名（`'English'`、`'Simplified Chinese'` など）で、そのままプロンプトに入ります。表示名は `languages.js` に英語・日本語の両方を書き、`MyLingoI18n.languageLabel()` で取り出します。`'other'` のときは利用者が入力した言語名（Web: `localStorage` の `lingo-target-custom`、拡張機能: `customTarget`）を使います。
+- 設定値は言語の英語名（`'English'`、`'Simplified Chinese'` など）で、そのままプロンプトに入ります。表示名は `languages.js` に英語・日本語の両方を書き、`MyLingoI18n.languageLabel()` で取り出します。未選択のとき（Web: `lingo-target` がない、拡張機能: `target` が空）は `MyLingoI18n.defaultTarget()`（表示言語が日本語なら `'Japanese'`、それ以外は `'English'`）を使います。`'other'` のときは利用者が入力した言語名（Web: `localStorage` の `lingo-target-custom`、拡張機能: `customTarget`）を使います。
 - 拡張機能の旧形式の保存値（`'en'` / `'ja'` / `'auto'`）は、`loadSettings()` で新しい形式に読み替えます。保存形式を変えるときは、同じように移行処理を入れてください。
 
 ## 動かし方
