@@ -1,5 +1,7 @@
 import { configs, translationModes, modelFor, missingKeyMessage } from './providers.js';
 
+const t = (key, params) => MyLingoI18n.t(key, params);
+
 // Errors that retrying with a smaller batch cannot fix (bad key, quota, network...).
 export class FatalTranslationError extends Error {}
 
@@ -44,11 +46,11 @@ function retryAfterMs(response, data) {
 
 function friendlyApiError(provider, model, status, message) {
   const name = configs[provider].name;
-  const detail = message || 'サービスから詳細なエラー情報を取得できませんでした。';
-  if (status === 401 || status === 403) return `APIキーを確認してください。${name} 用のAPIキーが無効、または権限不足です。\n詳細: ${detail}`;
-  if (status === 429) return `利用上限に達しているか、短時間にリクエストが集中しています。しばらく待ってから再試行してください。\n詳細: ${detail}`;
-  if (status === 400 || status === 404) return `モデルまたはAPIの設定を確認してください。現在のモデル: ${model}\n詳細: ${detail}`;
-  return `${name} でエラーが発生しました（HTTP ${status}）。\n詳細: ${detail}`;
+  const summary = status === 401 || status === 403 ? t('error.auth', { name })
+    : status === 429 ? t('error.rateLimit')
+    : status === 400 || status === 404 ? t('error.model', { model })
+    : t('error.http', { name, status });
+  return `${summary}\n${t('error.detail', { detail: message || t('error.noDetail') })}`;
 }
 
 function getOpenAIText(data) {
@@ -67,7 +69,7 @@ async function postJSON(provider, model, url, headers, body) {
   try {
     response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
   } catch {
-    throw new FatalTranslationError(`${configs[provider].name} に接続できませんでした。ネットワーク接続を確認してください。`);
+    throw new FatalTranslationError(t('error.network', { name: configs[provider].name }));
   }
   const data = await response.json().catch(() => ({}));
   if (response.status === 429) throw new RateLimitError(friendlyApiError(provider, model, 429, data.error?.message), retryAfterMs(response, data));
@@ -114,7 +116,7 @@ const rejectsFastSettings = new Set(); // "provider:model" that returned 400 wit
 async function requestModel(settings, system, user, maxTokens) {
   const { provider } = settings;
   const key = settings.apiKeys?.[provider];
-  if (settings.locked) throw new FatalTranslationError('APIキーがロックされています。MyLingo の設定画面でロックを解除してください。');
+  if (settings.locked) throw new FatalTranslationError(t('error.locked'));
   if (!key) throw new FatalTranslationError(missingKeyMessage(settings));
   const model = modelFor(settings);
   const id = `${provider}:${model}`;
@@ -142,7 +144,7 @@ async function sendRequest(provider, model, key, system, user, maxTokens, fast) 
     const data = await postJSON(provider, model, `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, { 'x-goog-api-key': key }, { systemInstruction: { parts: [{ text: system }] }, contents: [{ parts: [{ text: user }] }], generationConfig: { temperature: 0.2, ...(fast && { thinkingConfig: thinkingConfig(model) }) } });
     text = data.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('');
   }
-  if (!text) throw new FatalTranslationError('翻訳結果を取得できませんでした。設定のモデル名を確認してください。');
+  if (!text) throw new FatalTranslationError(t('error.empty'));
   return text.trim();
 }
 

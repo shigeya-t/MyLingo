@@ -1,35 +1,42 @@
 import { configs, loadSettings } from './lib/providers.js';
 
 const $ = (selector) => document.querySelector(selector);
+const t = (key, params) => MyLingoI18n.t(key, params);
 const orbs = { openai: '✦', anthropic: 'A', gemini: '✧' };
 
-function renderFields(settings) {
+// `keepTyped` keeps values typed but not saved yet, for redrawing in another UI language.
+function renderFields(settings, { keepTyped = false } = {}) {
+  const typed = keepTyped ? [...$('#providerFields').querySelectorAll('input')].map((input) => [input.id, input.value]) : [];
   $('#providerFields').innerHTML = '';
   for (const [id, config] of Object.entries(configs)) {
     const section = document.createElement('section');
     section.className = 'provider-card';
     section.innerHTML = `
       <h2><span class="provider-orb ${id}">${orbs[id]}</span>${config.name}</h2>
-      <label class="field-label" for="key-${id}">API キー</label>
-      <div class="key-field"><input id="key-${id}" type="password" autocomplete="off" placeholder="API key を貼り付け" /><button type="button" data-toggle="key-${id}">表示</button></div>
-      <label class="field-label" for="model-${id}">モデル</label>
+      <label class="field-label" for="key-${id}">${t('settings.apiKey')}</label>
+      <div class="key-field"><input id="key-${id}" type="password" autocomplete="off" placeholder="${t('settings.keyPlaceholder')}" /><button type="button" data-toggle="key-${id}">${t('settings.show')}</button></div>
+      <label class="field-label" for="model-${id}">${t('settings.model')}</label>
       <input id="model-${id}" class="model-input" type="text" placeholder="${config.model}" />
-      <label class="field-label" for="rate-${id}">1分あたりの最大リクエスト数 <span class="hint">0 = 制限なし</span></label>
+      <label class="field-label" for="rate-${id}">${t('options.rateLimit')} <span class="hint">${t('options.rateHint')}</span></label>
       <input id="rate-${id}" class="model-input" type="number" min="0" step="1" />`;
     const keyInput = section.querySelector(`#key-${id}`);
     keyInput.value = keysLocked() ? '' : apiKeys()[id] || '';
     keyInput.disabled = keysLocked();
     section.querySelector(`[data-toggle="key-${id}"]`).disabled = keysLocked();
-    if (keysLocked()) keyInput.placeholder = 'ロックを解除すると編集できます';
+    if (keysLocked()) keyInput.placeholder = t('settings.lockedPlaceholder');
     section.querySelector(`#model-${id}`).value = settings.models?.[id] || config.model;
     section.querySelector(`#rate-${id}`).value = settings.rateLimits[id];
     $('#providerFields').appendChild(section);
+  }
+  for (const [id, value] of typed) {
+    const input = document.getElementById(id);
+    if (input && !input.disabled) input.value = value;
   }
   document.querySelectorAll('[data-toggle]').forEach((button) => button.addEventListener('click', () => {
     const input = document.getElementById(button.dataset.toggle);
     const hidden = input.type === 'password';
     input.type = hidden ? 'text' : 'password';
-    button.textContent = hidden ? '隠す' : '表示';
+    button.textContent = t(hidden ? 'settings.hide' : 'settings.show');
   }));
 }
 
@@ -49,7 +56,7 @@ $('#settingsForm').addEventListener('submit', async (event) => {
   }
   await chrome.storage.local.set({ models, rateLimits });
   if (!keysLocked()) await saveApiKeys(typedKeys());
-  toast('設定を保存しました');
+  toast(t('options.saved'));
 });
 
 // With encryption on, editing the keys needs the key derived on this page;
@@ -118,4 +125,11 @@ const vaultPanel = MyLingoVault.mountPanel($('#vaultPanel'), {
 
 $('#commitHash').textContent = globalThis.MYLINGO_COMMIT || '';
 
-refresh();
+const languageSwitch = MyLingoI18n.mountSwitch($('#langSwitch'), async (language) => {
+  await chrome.storage.local.set({ uiLanguage: language });
+  MyLingoI18n.apply();
+  renderFields(await loadSettings(), { keepTyped: true });
+  vaultPanel.render();
+});
+
+loadSettings().then(() => { MyLingoI18n.apply(); languageSwitch.render(); refresh(); });
