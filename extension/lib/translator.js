@@ -185,6 +185,8 @@ export async function translateSegments(settings, segments, target) {
   return [...first, ...second];
 }
 
+// A closing tag inside the text would end the source early and let the rest
+// pass as instructions, so it is defused before wrapping.
 export function translateText(settings, text, target) {
-  return callModel(settings, textPrompt(settings, target), `<source>\n${text}\n</source>`, 4096);
+  return callModel(settings, textPrompt(settings, target), `<source>\n${text.replace(/<(\/source)/gi, '<\\$1')}\n</source>`, 4096);
 }
