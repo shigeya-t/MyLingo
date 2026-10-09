@@ -6,35 +6,41 @@ export const configs = {
   gemini: { name: 'Gemini', model: 'gemini-3.5-flash-lite', rateLimit: 12 }
 };
 
+// Labels are the `mode.<key>` messages in i18n.js.
 export const translationModes = {
-  faithful: { label: '原文に忠実', prompt: 'Phrase the translation as literally and faithfully as possible, staying close to the original sentence structure and word choice without paraphrasing or adding stylistic flourishes.' },
-  natural: { label: 'ネイティブらしい自然な訳', prompt: 'Phrase the translation so it reads naturally and fluently, as if originally written by a native speaker. Prioritize natural phrasing over literal wording.' },
-  business: { label: 'ビジネス文書向け', prompt: 'Phrase the translation in formal, professional business language, as it would appear in a corporate document, email, or official correspondence.' },
-  casual: { label: '会話・SNS向け', prompt: 'Phrase the translation in casual, conversational language, as it would appear in an everyday chat message or social media post.' },
-  technical: { label: '技術文書向け', prompt: 'Phrase the translation using precise technical terminology, as it would appear in technical documentation, keeping domain-specific terms accurate and consistent.' }
+  faithful: { prompt: 'Phrase the translation as literally and faithfully as possible, staying close to the original sentence structure and word choice without paraphrasing or adding stylistic flourishes.' },
+  natural: { prompt: 'Phrase the translation so it reads naturally and fluently, as if originally written by a native speaker. Prioritize natural phrasing over literal wording.' },
+  business: { prompt: 'Phrase the translation in formal, professional business language, as it would appear in a corporate document, email, or official correspondence.' },
+  casual: { prompt: 'Phrase the translation in casual, conversational language, as it would appear in an everyday chat message or social media post.' },
+  technical: { prompt: 'Phrase the translation using precise technical terminology, as it would appear in technical documentation, keeping domain-specific terms accurate and consistent.' }
 };
 
 import './languages.js';
+import './i18n.js';
 
 export const { targets: targetLanguages, custom: customTarget } = globalThis.MyLingoLanguages;
 // Values saved by earlier versions, which offered only these (and 'auto').
-const legacyTargets = { en: 'English', ja: 'Japanese', auto: 'English' };
+const legacyTargets = { en: 'English', ja: 'Japanese', auto: '' };
 
-// The language name given to the model, or '' when "その他" is chosen but left blank.
+// The language name given to the model, or '' when "Other" is chosen but left blank.
 export function targetLanguageName(settings) {
   return settings.target === customTarget ? (settings.customTarget || '').trim() : settings.target;
 }
 
-export const defaults = { provider: 'openai', mode: 'faithful', target: 'English', customTarget: '', apiKeys: {}, models: {}, rateLimits: {} };
+// `target` left empty means MyLingoI18n.defaultTarget(), which follows the UI language.
+export const defaults = { provider: 'openai', mode: 'faithful', target: '', customTarget: '', apiKeys: {}, models: {}, rateLimits: {}, uiLanguage: '' };
 
 // With encryption on, chrome.storage.local holds only the encrypted `vault`
 // (see lib/vault.js); the options page puts the decrypted keys in
 // chrome.storage.session, which stays in memory until the browser closes.
+// Also switches MyLingoI18n to the UI language picked with the switch
+// (`uiLanguage`, empty to follow the browser).
 export async function loadSettings() {
   const { vault, ...stored } = await chrome.storage.local.get([...Object.keys(defaults), 'vault']);
   const settings = { ...defaults, ...stored };
-  settings.target = legacyTargets[settings.target] || settings.target;
-  if (settings.target !== customTarget && !targetLanguages[settings.target]) settings.target = defaults.target;
+  MyLingoI18n.setLanguage(settings.uiLanguage);
+  settings.target = legacyTargets[settings.target] ?? settings.target;
+  if (settings.target !== customTarget && !targetLanguages[settings.target]) settings.target = MyLingoI18n.defaultTarget();
   if (vault) {
     const { apiKeys } = await chrome.storage.session.get('apiKeys');
     settings.apiKeys = apiKeys || {};
@@ -57,6 +63,9 @@ export async function requestUnlock(tabId, message, frameId = 0) {
 
 const PENDING_TTL = 10 * 60 * 1000;
 
+// Injected on demand; content.js uses MyLingoI18n.
+export const contentScripts = ['lib/i18n.js', 'content.js'];
+
 export async function runPending() {
   const { pendingAction: pending } = await chrome.storage.session.get('pendingAction');
   await chrome.storage.session.remove('pendingAction');
@@ -64,7 +73,7 @@ export async function runPending() {
   const { tabId, frameId, message } = pending;
   const tab = await chrome.tabs.update(tabId, { active: true });
   await chrome.windows.update(tab.windowId, { focused: true });
-  await chrome.scripting.executeScript({ target: { tabId, frameIds: [frameId] }, files: ['content.js'] });
+  await chrome.scripting.executeScript({ target: { tabId, frameIds: [frameId] }, files: contentScripts });
   await chrome.tabs.sendMessage(tabId, message, { frameId });
 }
 
@@ -79,9 +88,7 @@ export async function unlockVault(passphrase) {
 
 export function missingKeyMessage(settings) {
   const name = configs[settings.provider].name;
-  return settings.lockMethod
-    ? `暗号化して保存したAPIキーに ${name} のキーが含まれていません。設定画面でロックを解除してから入力してください。`
-    : `${name} のAPIキーが未設定です。設定画面から入力してください。`;
+  return MyLingoI18n.t(settings.lockMethod ? 'error.missingKeyVault' : 'error.missingKey', { name });
 }
 
 export function modelFor(settings, provider = settings.provider) {

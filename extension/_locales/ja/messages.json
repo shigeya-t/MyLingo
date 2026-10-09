@@ -1,0 +1,5 @@
+{
+  "description": { "message": "ChatGPT・Claude・Gemini を切り替えて、表示中のWebページを英語・日本語などお好みの言語に翻訳します。" },
+  "actionTitle": { "message": "MyLingo でページを翻訳" },
+  "toggleCommand": { "message": "ページの翻訳 / 原文に戻す を切り替え" }
+}

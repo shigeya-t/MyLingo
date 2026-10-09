@@ -1,31 +1,31 @@
 <!doctype html>
-<html lang="ja">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>MyLingo 設定</title>
+    <title data-i18n="options.pageTitle">MyLingo Settings</title>
     <link rel="stylesheet" href="ui.css" />
   </head>
   <body class="options">
     <main class="options-shell">
       <header class="options-head">
-        <span class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>MyLingo</span>
-        <p class="eyebrow">LOCAL SETTINGS</p>
-        <h1>接続設定</h1>
-        <p class="settings-description">各AIサービスのAPIキーとモデル名を入力してください。キーはこのブラウザの拡張機能ストレージ（<code>chrome.storage.local</code>）にのみ保存されます。</p>
+        <div class="topbar"><span class="brand"><span class="brand-mark"><i></i><i></i><i></i></span>MyLingo</span><span id="langSwitch"></span></div>
+        <p class="eyebrow" data-i18n="settings.eyebrow">LOCAL SETTINGS</p>
+        <h1 data-i18n="settings.title">Connection settings</h1>
+        <p class="settings-description" data-i18n-html="options.description"></p>
       </header>
 
       <section class="provider-card vault" aria-labelledby="vaultTitle">
-        <h2 id="vaultTitle">APIキーの暗号化</h2>
+        <h2 id="vaultTitle" data-i18n="vault.title">API key encryption</h2>
         <div id="vaultPanel"></div>
       </section>
 
       <form id="settingsForm">
         <div id="providerFields"></div>
-        <button type="submit" class="primary-button">保存する</button>
+        <button type="submit" class="primary-button" data-i18n="settings.save">Save</button>
       </form>
 
-      <p class="security-note">翻訳時は、ページのテキストとAPIキーが拡張機能から各AIサービスのAPIへ直接送信されます。サーバーを経由しません。パスワード入力欄・テキスト入力欄・コードブロックは翻訳の対象外です。</p>
-      <p class="commit-hash">コミット <span id="commitHash"></span></p>
+      <p class="security-note" data-i18n="options.securityNote"></p>
+      <p class="commit-hash"><span data-i18n="settings.commit">Commit</span> <span id="commitHash"></span></p>
     </main>
     <div id="toast" class="toast" role="status"></div>
     <script src="lib/version.js"></script>

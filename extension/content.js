@@ -31,6 +31,12 @@ if (!window.__myLingoLoaded) {
   let observerTimer = null;
   let bubbleHost = null;
 
+  // UI text follows the language picked in the extension (lib/i18n.js is
+  // injected before this script).
+  const { t } = MyLingoI18n;
+  const languageReady = chrome.storage.local.get('uiLanguage').then(({ uiLanguage }) => MyLingoI18n.setLanguage(uiLanguage), () => {});
+  chrome.storage.onChanged.addListener((changes, area) => { if (area === 'local' && changes.uiLanguage) MyLingoI18n.setLanguage(changes.uiLanguage.newValue); });
+
   const isOwnUi = (element) => bubbleHost && (element === bubbleHost || bubbleHost.contains(element));
 
   function setState(patch) {
@@ -203,8 +209,9 @@ if (!window.__myLingoLoaded) {
   async function translatePage() {
     if (state.status === 'translating' || state.status === 'translated') return state;
     const { settings } = await chrome.runtime.sendMessage({ type: 'getSettings' });
+    await languageReady;
     const { target, mode } = settings;
-    if (!target) return failStart(new Error('翻訳先の言語が未入力です。ポップアップの「その他」に言語名を入力してください。'));
+    if (!target) return failStart(new Error(t('ext.missingTargetPopup')));
     seen = new WeakSet(); // Lets a retry after an error pick up segments that failed.
     firstBatch = true;
     setState({ status: 'translating', done: 0, total: 0, error: '', target, mode });
@@ -216,7 +223,7 @@ if (!window.__myLingoLoaded) {
   }
 
   function failStart(error) {
-    setState({ status: 'error', done: 0, error: error?.message || '翻訳を開始できませんでした。' });
+    setState({ status: 'error', done: 0, error: error?.message || t('ext.startFailed') });
     return state;
   }
 
@@ -265,25 +272,27 @@ if (!window.__myLingoLoaded) {
           .actions { display: flex; justify-content: flex-end; margin-top: 10px; } .copy { font: 700 11px system-ui; border: 1px solid #2a3233; border-radius: 8px; padding: 6px 10px; }
           @media (prefers-color-scheme: light) { .card { background: #fff; color: #161a17; border-color: #dde2d9; box-shadow: 0 18px 50px rgba(0,0,0,.15); } .head, button { color: #69726c; } button:hover { color: #161a17; } .brand i { background: #5f8a1a; } .copy { border-color: #dde2d9; } .body.loading { color: #69726c; } .body.error { color: #c62828; } }
         </style>
-        <div class="card" role="dialog" aria-label="MyLingo 翻訳">
-          <div class="head"><span class="brand"><i></i>MyLingo</span><button class="close" aria-label="閉じる">×</button></div>
+        <div class="card" role="dialog">
+          <div class="head"><span class="brand"><i></i>MyLingo</span><button class="close">×</button></div>
           <div class="body"></div>
-          <div class="actions"><button class="copy">コピー</button></div>
+          <div class="actions"><button class="copy"></button></div>
         </div>`;
       shadow.querySelector('.close').addEventListener('click', hideBubble);
       shadow.querySelector('.copy').addEventListener('click', async (event) => {
         await navigator.clipboard.writeText(shadow.querySelector('.body').textContent);
-        event.target.textContent = 'コピーしました';
+        event.target.textContent = t('copied');
       });
       document.addEventListener('keydown', (event) => { if (event.key === 'Escape') hideBubble(); });
       document.addEventListener('mousedown', (event) => { if (bubbleHost?.isConnected && !event.composedPath().includes(bubbleHost)) hideBubble(); });
     }
     const shadow = bubbleHost.shadowRoot;
+    shadow.querySelector('.card').setAttribute('aria-label', t('ext.bubble'));
+    shadow.querySelector('.close').setAttribute('aria-label', t('ext.close'));
     const body = shadow.querySelector('.body');
     body.textContent = text;
     body.className = `body${loading ? ' loading' : ''}${error ? ' error' : ''}`;
     shadow.querySelector('.actions').style.display = loading || error ? 'none' : 'flex';
-    shadow.querySelector('.copy').textContent = 'コピー';
+    shadow.querySelector('.copy').textContent = t('ext.copy');
     if (!bubbleHost.isConnected) {
       const rect = selectionRect();
       const top = rect.bottom + 340 < window.innerHeight ? rect.bottom + 8 : Math.max(8, rect.top - 340);
@@ -298,8 +307,9 @@ if (!window.__myLingoLoaded) {
   async function translateSelection(text) {
     const selected = (text || window.getSelection()?.toString() || '').trim();
     if (!selected) return;
+    await languageReady;
     hideBubble();
-    showBubble('翻訳しています…', { loading: true });
+    showBubble(t('status.translating'), { loading: true });
     const response = await chrome.runtime.sendMessage({ type: 'translateText', text: selected });
     if (!bubbleHost?.isConnected) return;
     if (response?.error) showBubble(response.error, { error: true });
