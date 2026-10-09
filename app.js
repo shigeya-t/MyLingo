@@ -158,7 +158,12 @@ async function callProvider(key, model, sourceLanguage, text, fast) {
 }
 
 async function requestTranslation(text) {
-  const key = localStorage.getItem(providerConfig().key);
+  if (vaultLocked()) {
+    output('APIキーはロックされています。右上の設定からロックを解除してください。');
+    $('#translationStatus').textContent = 'APIキーがロックされています';
+    return;
+  }
+  const key = apiKey(provider);
   if (!key) {
     output('APIキーを設定すると翻訳できます。右上の設定から入力してください。');
     $('#translationStatus').textContent = 'APIキーが未設定です';
@@ -188,6 +193,51 @@ async function requestTranslation(text) {
   }
 }
 
+// With encryption on, the keys live only in `lingo-vault` (see
+// extension/lib/vault.js) and, once unlocked, in memory until the page closes.
+const vaultStorageKey = 'lingo-vault';
+let vault = JSON.parse(localStorage.getItem(vaultStorageKey) || 'null');
+let unlocked = null; // { keys, key } while unlocked.
+
+function vaultLocked() { return Boolean(vault && !unlocked); }
+function apiKey(id) { return vault ? unlocked?.keys[id] || '' : localStorage.getItem(configs[id].key) || ''; }
+function plainKeys() { return Object.fromEntries(Object.entries(configs).map(([id, config]) => [id, localStorage.getItem(config.key) || ''])); }
+function storeVault(next) { vault = next; localStorage.setItem(vaultStorageKey, JSON.stringify(vault)); }
+
+async function saveApiKey(id, value) {
+  if (!vault) { localStorage.setItem(configs[id].key, value); return; }
+  const keys = { ...unlocked.keys, [id]: value };
+  storeVault(await MyLingoVault.reseal(vault, unlocked.key, keys));
+  unlocked.keys = keys;
+}
+
+function afterVaultChange() {
+  fillSettings();
+  if (!vaultLocked() && source.value.trim()) scheduleTranslation();
+}
+
+const vaultPanel = MyLingoVault.mountPanel($('#vaultPanel'), {
+  state: () => ({ method: vault?.method || null, unlocked: Boolean(unlocked) }),
+  async protect(method, passphrase) {
+    // Include a key typed into the form but not saved yet.
+    const keys = { ...plainKeys(), ...($('#apiKey').value.trim() && { [provider]: $('#apiKey').value.trim() }) };
+    const created = await MyLingoVault.create(method, keys, passphrase);
+    storeVault(created.vault);
+    unlocked = { keys, key: created.key };
+    Object.values(configs).forEach((config) => localStorage.removeItem(config.key));
+    afterVaultChange();
+  },
+  async unlock(passphrase) { unlocked = await MyLingoVault.unlock(vault, passphrase); afterVaultChange(); },
+  lock() { unlocked = null; afterVaultChange(); },
+  unprotect() {
+    Object.entries(unlocked.keys).forEach(([id, value]) => { if (configs[id] && value) localStorage.setItem(configs[id].key, value); });
+    localStorage.removeItem(vaultStorageKey);
+    vault = null; unlocked = null;
+    afterVaultChange();
+  },
+  reset() { localStorage.removeItem(vaultStorageKey); vault = null; unlocked = null; afterVaultChange(); }
+});
+
 function scheduleTranslation() {
   clearTimeout(timer);
   const text = source.value.trim();
@@ -197,9 +247,17 @@ function scheduleTranslation() {
   timer = setTimeout(() => requestTranslation(text), 700);
 }
 
-function openSettings() { fillSettings(); $('#settingsPanel').classList.add('open'); $('#scrim').classList.add('show'); $('#settingsPanel').setAttribute('aria-hidden', 'false'); }
+function openSettings() { fillSettings(); vaultPanel.render(); $('#settingsPanel').classList.add('open'); $('#scrim').classList.add('show'); $('#settingsPanel').setAttribute('aria-hidden', 'false'); }
 function closeSettings() { $('#settingsPanel').classList.remove('open'); $('#scrim').classList.remove('show'); $('#settingsPanel').setAttribute('aria-hidden', 'true'); }
-function fillSettings() { const config = providerConfig(); $('#keyProvider').textContent = config.name; $('#apiKey').value = localStorage.getItem(config.key) || ''; $('#modelInput').value = currentModel(); }
+function fillSettings() {
+  const config = providerConfig(), locked = vaultLocked();
+  $('#keyProvider').textContent = config.name;
+  $('#apiKey').value = locked ? '' : apiKey(provider);
+  $('#apiKey').disabled = locked;
+  $('#toggleKey').disabled = locked;
+  $('#apiKey').placeholder = locked ? 'ロックを解除すると編集できます' : 'API key を貼り付け';
+  $('#modelInput').value = currentModel();
+}
 function toast(message) { $('#toast').textContent = message; $('#toast').classList.add('show'); setTimeout(() => $('#toast').classList.remove('show'), 1800); }
 
 source.addEventListener('input', scheduleTranslation);
@@ -210,7 +268,12 @@ $('#swapButton').addEventListener('click', () => { const text = translation.text
 document.querySelectorAll('[data-copy]').forEach((button) => button.addEventListener('click', async () => { const id = button.dataset.copy; const text = id === 'translation' ? translation.textContent.trim() : source.value; if (!text) return; await navigator.clipboard.writeText(text); toast('コピーしました'); }));
 $('.settings-trigger').addEventListener('click', openSettings); $('.close-settings').addEventListener('click', closeSettings); $('#scrim').addEventListener('click', closeSettings);
 $('#toggleKey').addEventListener('click', () => { const isPassword = $('#apiKey').type === 'password'; $('#apiKey').type = isPassword ? 'text' : 'password'; $('#toggleKey').textContent = isPassword ? '隠す' : '表示'; });
-$('#saveSettings').addEventListener('click', () => { const config = providerConfig(); localStorage.setItem(config.key, $('#apiKey').value.trim()); localStorage.setItem(config.modelKey, $('#modelInput').value.trim() || config.model); closeSettings(); toast(`${config.name} の設定を保存しました`); if (source.value.trim()) scheduleTranslation(); });
+$('#saveSettings').addEventListener('click', async () => {
+  const config = providerConfig();
+  if (!vaultLocked()) await saveApiKey(provider, $('#apiKey').value.trim());
+  localStorage.setItem(config.modelKey, $('#modelInput').value.trim() || config.model);
+  closeSettings(); toast(`${config.name} の設定を保存しました`); if (source.value.trim()) scheduleTranslation();
+});
 $('#themeToggle').addEventListener('click', () => { const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light'; localStorage.setItem('lingo-theme', next); applyTheme(next); });
 $('#modeSelect').addEventListener('change', () => { mode = $('#modeSelect').value; localStorage.setItem('lingo-mode', mode); if (source.value.trim()) scheduleTranslation(); });
 $('#modeSelect').value = mode;

@@ -14,6 +14,11 @@
         <p class="settings-description">各AIサービスのAPIキーとモデル名を入力してください。キーはこのブラウザの拡張機能ストレージ（<code>chrome.storage.local</code>）にのみ保存されます。</p>
       </header>
 
+      <section class="provider-card vault" aria-labelledby="vaultTitle">
+        <h2 id="vaultTitle">APIキーの暗号化</h2>
+        <div id="vaultPanel"></div>
+      </section>
+
       <form id="settingsForm">
         <div id="providerFields"></div>
         <button type="submit" class="primary-button">保存する</button>
@@ -22,6 +27,7 @@
       <p class="security-note">翻訳時は、ページのテキストとAPIキーが拡張機能から各AIサービスのAPIへ直接送信されます。サーバーを経由しません。パスワード入力欄・テキスト入力欄・コードブロックは翻訳の対象外です。</p>
     </main>
     <div id="toast" class="toast" role="status"></div>
+    <script src="lib/vault.js"></script>
     <script type="module" src="options.js"></script>
   </body>
 </html>

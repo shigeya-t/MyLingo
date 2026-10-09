@@ -91,10 +91,15 @@
       <label class="field-label" for="modelInput">モデル</label>
       <input id="modelInput" class="model-input" type="text" />
       <button id="saveSettings" class="save-button">保存する</button>
+      <section class="vault" aria-labelledby="vaultTitle">
+        <h3 class="vault-title" id="vaultTitle">APIキーの暗号化</h3>
+        <div id="vaultPanel"></div>
+      </section>
       <p class="security-note">このアプリはサーバーを経由しないため、APIキーはご自身の端末から各サービスへ直接送信されます。</p>
     </aside>
     <div id="scrim" class="scrim"></div>
     <div id="toast" class="toast" role="status"></div>
+    <script src="extension/lib/vault.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

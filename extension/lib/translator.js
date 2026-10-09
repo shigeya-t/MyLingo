@@ -116,6 +116,7 @@ const rejectsFastSettings = new Set(); // "provider:model" that returned 400 wit
 async function requestModel(settings, system, user, maxTokens) {
   const { provider } = settings;
   const key = settings.apiKeys?.[provider];
+  if (settings.locked) throw new FatalTranslationError('APIキーがロックされています。MyLingo の設定画面でロックを解除してください。');
   if (!key) throw new FatalTranslationError(`${configs[provider].name} のAPIキーが未設定です。設定画面から入力してください。`);
   const model = modelFor(settings);
   const id = `${provider}:${model}`;
