@@ -13,6 +13,10 @@ if (!window.__myLingoLoaded) {
   const CONCURRENCY = 3;
 
   const originals = new Map(); // Text node -> original text, for restoring.
+  // Translation -> original text. Some pages copy or re-render text into new
+  // nodes, which `originals` does not know; restoring looks those up here so
+  // a retranslation never starts from already translated text.
+  const sources = new Map();
   let seen = new WeakSet(); // Nodes already queued, so dynamic content is not translated twice.
   let state = { status: 'idle', done: 0, total: 0, error: '', target: '', mode: '' };
   let generation = 0; // Bumped on restore so late replies are ignored.
@@ -60,6 +64,8 @@ if (!window.__myLingoLoaded) {
       acceptNode(node) {
         if (seen.has(node) || originals.has(node)) return NodeFilter.FILTER_REJECT;
         const text = node.data.trim();
+        // A copy of our own translation; restoring puts its original back.
+        if (sources.has(text)) return NodeFilter.FILTER_REJECT;
         if (text.length < 2 || !/\p{L}/u.test(text) || alreadyInTarget(text, target)) return NodeFilter.FILTER_REJECT;
         return shouldSkipElement(node.parentElement) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
       }
@@ -137,6 +143,7 @@ if (!window.__myLingoLoaded) {
     const leading = original.match(/^\s*/)[0], trailing = original.match(/\s*$/)[0];
     if (!originals.has(node)) originals.set(node, original);
     node.data = leading + translated.trim() + trailing;
+    sources.set(translated.trim(), (originals.get(node) || original).trim());
   }
 
   function pump() {
@@ -218,6 +225,16 @@ if (!window.__myLingoLoaded) {
     stopWatching();
     for (const [node, text] of originals) if (node.isConnected) node.data = text;
     originals.clear();
+    if (sources.size && document.body) {
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const node = walker.currentNode, text = node.data.trim();
+        if (!sources.has(text) || isOwnUi(node.parentElement)) continue;
+        const leading = node.data.match(/^\s*/)[0], trailing = node.data.match(/\s*$/)[0];
+        node.data = leading + sources.get(text) + trailing;
+      }
+    }
+    sources.clear();
     setState({ status: 'idle', done: 0, total: 0, error: '' });
     return state;
   }
