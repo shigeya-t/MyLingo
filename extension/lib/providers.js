@@ -34,6 +34,13 @@ export async function loadSettings() {
   return settings;
 }
 
+// A translation started while the keys are locked waits in
+// chrome.storage.session; the options page opens to unlock and then runs it.
+export async function requestUnlock(tabId, message, frameId = 0) {
+  await chrome.storage.session.set({ pendingAction: { tabId, frameId, message, at: Date.now() } });
+  await chrome.tabs.create({ url: chrome.runtime.getURL('options.html?unlock') });
+}
+
 export function modelFor(settings, provider = settings.provider) {
   return settings.models?.[provider] || configs[provider].model;
 }

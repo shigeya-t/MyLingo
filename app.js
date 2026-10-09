@@ -160,8 +160,12 @@ async function callProvider(key, model, sourceLanguage, text, fast) {
 
 async function requestTranslation(text) {
   if (vaultLocked()) {
-    output('APIキーはロックされています。右上の設定からロックを解除してください。');
+    translation.innerHTML = '<div class="locked-state"><p>APIキーはロックされています。</p><button type="button" class="unlock-button">ロックを解除して翻訳</button></div>';
+    translation.querySelector('.unlock-button').addEventListener('click', promptUnlock);
     $('#translationStatus').textContent = 'APIキーがロックされています';
+    // Start unlocking on the first locked translation; after that, wait for
+    // the button so typing does not keep reopening the panel.
+    if (!unlockPrompted) promptUnlock();
     return;
   }
   const key = apiKey(provider);
@@ -212,6 +216,17 @@ async function saveApiKey(id, value) {
   unlocked.keys = keys;
 }
 
+let unlockPrompted = false, unlockForTranslation = false;
+
+// Opens the settings panel and starts unlocking; once unlocked, the panel
+// closes and the pending translation runs.
+function promptUnlock() {
+  unlockPrompted = true;
+  openSettings();
+  unlockForTranslation = true;
+  vaultPanel.startUnlock();
+}
+
 function afterVaultChange() {
   fillSettings();
   if (!vaultLocked() && source.value.trim()) scheduleTranslation();
@@ -228,7 +243,11 @@ const vaultPanel = MyLingoVault.mountPanel($('#vaultPanel'), {
     Object.values(configs).forEach((config) => localStorage.removeItem(config.key));
     afterVaultChange();
   },
-  async unlock(passphrase) { unlocked = await MyLingoVault.unlock(vault, passphrase); afterVaultChange(); },
+  async unlock(passphrase) {
+    unlocked = await MyLingoVault.unlock(vault, passphrase);
+    if (unlockForTranslation) { closeSettings(); toast('ロックを解除しました'); }
+    afterVaultChange();
+  },
   lock() { unlocked = null; afterVaultChange(); },
   unprotect() {
     Object.entries(unlocked.keys).forEach(([id, value]) => { if (configs[id] && value) localStorage.setItem(configs[id].key, value); });
@@ -249,7 +268,7 @@ function scheduleTranslation() {
 }
 
 function openSettings() { fillSettings(); vaultPanel.render(); $('#settingsPanel').classList.add('open'); $('#scrim').classList.add('show'); $('#settingsPanel').setAttribute('aria-hidden', 'false'); }
-function closeSettings() { $('#settingsPanel').classList.remove('open'); $('#scrim').classList.remove('show'); $('#settingsPanel').setAttribute('aria-hidden', 'true'); }
+function closeSettings() { unlockForTranslation = false; $('#settingsPanel').classList.remove('open'); $('#scrim').classList.remove('show'); $('#settingsPanel').setAttribute('aria-hidden', 'true'); }
 function fillSettings() {
   const config = providerConfig(), locked = vaultLocked();
   $('#keyProvider').textContent = config.name;

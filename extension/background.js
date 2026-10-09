@@ -1,4 +1,4 @@
-import { loadSettings } from './lib/providers.js';
+import { loadSettings, requestUnlock } from './lib/providers.js';
 import { translateSegments, translateText } from './lib/translator.js';
 
 function detectTarget(text) {
@@ -18,9 +18,12 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!tab?.id) return;
   try {
     if (info.menuItemId === 'mylingo-selection') {
+      const message = { type: 'translateSelection', text: info.selectionText };
+      if ((await loadSettings()).locked) { await requestUnlock(tab.id, message, info.frameId ?? 0); return; }
       await injectContentScript(tab.id, [info.frameId ?? 0]);
-      await chrome.tabs.sendMessage(tab.id, { type: 'translateSelection', text: info.selectionText }, { frameId: info.frameId ?? 0 });
+      await chrome.tabs.sendMessage(tab.id, message, { frameId: info.frameId ?? 0 });
     } else if (info.menuItemId === 'mylingo-page') {
+      if ((await loadSettings()).locked) { await requestUnlock(tab.id, { type: 'translatePage' }); return; }
       await injectContentScript(tab.id);
       await chrome.tabs.sendMessage(tab.id, { type: 'translatePage' });
     }
@@ -33,6 +36,12 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
   if (command !== 'toggle-translation' || !tab?.id) return;
   try {
     await injectContentScript(tab.id);
+    // Going back to the original needs no keys, so only a new translation
+    // waits for unlocking.
+    if ((await loadSettings()).locked) {
+      const state = await chrome.tabs.sendMessage(tab.id, { type: 'getStatus' });
+      if (!['translating', 'translated'].includes(state?.status) && !state?.done) { await requestUnlock(tab.id, { type: 'translatePage' }); return; }
+    }
     await chrome.tabs.sendMessage(tab.id, { type: 'toggle' });
   } catch (error) {
     console.warn('MyLingo: このページでは実行できません', error);
