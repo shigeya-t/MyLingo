@@ -29,9 +29,17 @@ ChatGPT、Claude、Gemini を切り替えて使える、日本語・英語向け
 
 | サービス | 初期モデル |
 | --- | --- |
-| ChatGPT | `gpt-5.6-luna` |
-| Claude | `claude-haiku-4-5` |
+| ChatGPT | `gpt-6-luna` |
+| Claude | `claude-haiku-5-5` |
 | Gemini | `gemini-3.5-flash-lite` |
+
+### コミットハッシュの表示
+
+Webアプリのフッターと拡張機能のポップアップには、動いているコードのコミットハッシュが小さく表示されます。ハッシュは git フックが `extension/lib/version.js`（git管理外）に書き出すので、クローン後に一度だけ次を実行してください。以降はコミット・チェックアウト・pull のたびに自動で更新されます。
+
+```sh
+git config core.hooksPath .githooks && .githooks/write-version
+```
 
 ## Chrome拡張機能（Webページ翻訳）
 
@@ -92,6 +100,7 @@ Gemini APIの無料枠には1分あたりのリクエスト数の上限（例: `
 ├── index.html   # 画面構造
 ├── styles.css   # レスポンシブなダーク/ライトUI
 ├── app.js       # 翻訳・設定・各API接続
+├── .githooks/   # コミットハッシュを version.js に書き出すフック
 └── extension/   # Chrome拡張機能（Webページ翻訳）
     ├── manifest.json
     ├── background.js    # API呼び出し・右クリックメニュー・ショートカット

@@ -1,7 +1,7 @@
 // Shared by the service worker, popup and options page.
 export const configs = {
-  openai: { name: 'ChatGPT', model: 'gpt-5.6-luna' },
-  anthropic: { name: 'Claude', model: 'claude-haiku-4-5' },
+  openai: { name: 'ChatGPT', model: 'gpt-6-luna' },
+  anthropic: { name: 'Claude', model: 'claude-haiku-5-5' },
   // The Gemini free tier allows 15 requests per minute; stay a little under it.
   gemini: { name: 'Gemini', model: 'gemini-3.5-flash-lite', rateLimit: 12 }
 };

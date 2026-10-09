@@ -98,7 +98,7 @@ async function callModel(settings, system, user, maxTokens) {
 // token. These ask each model family for its lowest thinking setting; models
 // that reject them are remembered and called without (see requestModel).
 function reasoningEffort(model) {
-  if (/^gpt-5\.\d/.test(model)) return 'none';
+  if (/^gpt-(5\.\d|[6-9])/.test(model)) return 'none';
   if (/^gpt-5(-|$)/.test(model)) return 'minimal';
   if (/^o\d/.test(model)) return 'low';
   return null;

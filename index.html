@@ -71,7 +71,7 @@
           </section>
 
           <section class="pane output-pane">
-            <div class="pane-head"><span>翻訳</span><span class="model-label" id="modelLabel">ChatGPT</span></div>
+            <div class="pane-head"><span>翻訳</span><span class="model-label" id="modelLabel"></span></div>
             <div id="translation" class="translation" aria-live="polite">
               <div class="empty-state"><span class="empty-star">✦</span><p>ここに翻訳が表示されます</p></div>
             </div>
@@ -80,7 +80,7 @@
         </div>
       </section>
 
-      <footer><span><i></i> 日本語と英語を自動判別して翻訳します</span><span>⌘ + Enter で翻訳</span></footer>
+      <footer><span><i></i> 日本語と英語を自動判別して翻訳します</span><span>⌘ + Enter で翻訳<span class="commit-hash" id="commitHash" title="コミット"></span></span></footer>
     </main>
 
     <aside class="settings-panel" id="settingsPanel" aria-hidden="true">
@@ -99,6 +99,7 @@
     </aside>
     <div id="scrim" class="scrim"></div>
     <div id="toast" class="toast" role="status"></div>
+    <script src="extension/lib/version.js"></script>
     <script src="extension/lib/vault.js"></script>
     <script src="app.js"></script>
   </body>
