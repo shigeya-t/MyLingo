@@ -50,14 +50,28 @@ function initTheme() {
   applyTheme(stored || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
 }
 
+// A rough guess by script, used for the label and for the swap button; the
+// model itself works out the source language. Returns a targetLanguages key,
+// or null when the script does not point to one language.
 function detectLanguage(text) {
-  // Only labels the input; the model itself works out the source language.
-  return /[\u3040-\u30ff\u3400-\u9faf]/.test(text) ? 'ja' : 'en';
+  if (/[\u3040-\u30ff]/.test(text)) return 'Japanese';
+  if (/[\uac00-\ud7af]/.test(text)) return 'Korean';
+  if (/[\u3400-\u9fff]/.test(text)) return 'Japanese'; // Kanji only, e.g. a short term
+  if (/[\u0e00-\u0e7f]/.test(text)) return 'Thai';
+  if (/[\u0400-\u04ff]/.test(text)) return 'Russian';
+  if (/[a-z]/i.test(text)) return 'English';
+  return null;
 }
 
 function setLanguages(text) {
   const sourceLanguage = detectLanguage(text);
-  $('#sourceLang').textContent = text.trim() ? (sourceLanguage === 'ja' ? '日本語を検出' : '英語を検出') : '言語を自動判別';
+  $('#sourceLang').textContent = text.trim() && sourceLanguage ? `${targetLanguages[sourceLanguage]}を検出` : '言語を自動判別';
+}
+
+function setTarget(next) {
+  target = next;
+  localStorage.setItem('lingo-target', target);
+  renderTarget();
 }
 
 // The language name sent to the model, or '' when "その他" is chosen but left blank.
@@ -342,7 +356,16 @@ source.addEventListener('input', scheduleTranslation);
 source.addEventListener('keydown', (event) => { if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') { clearTimeout(timer); requestTranslation(source.value.trim()); } });
 document.querySelectorAll('.provider').forEach((button) => button.addEventListener('click', () => { setProvider(button.dataset.provider); if (source.value.trim()) scheduleTranslation(); }));
 $('#clearButton').addEventListener('click', () => { source.value = ''; scheduleTranslation(); source.focus(); });
-$('#swapButton').addEventListener('click', () => { const text = translation.textContent.trim(); if (!text || translation.querySelector('.empty-state')) return; source.value = text; scheduleTranslation(); source.focus(); toast('翻訳結果を原文にコピーしました'); });
+$('#swapButton').addEventListener('click', () => {
+  const text = translation.textContent.trim();
+  if (!text || translation.querySelector('.empty-state')) return;
+  // The original text's language becomes the new target, so the swap translates back.
+  const original = detectLanguage(source.value);
+  const swapped = original && original !== target;
+  if (swapped) setTarget(original);
+  source.value = text; scheduleTranslation(); source.focus();
+  toast(swapped ? `原文と翻訳を入れ替えました（翻訳先: ${targetLanguages[original]}）` : '翻訳結果を原文にコピーしました');
+});
 document.querySelectorAll('[data-copy]').forEach((button) => button.addEventListener('click', async () => { const id = button.dataset.copy; const text = id === 'translation' ? translation.textContent.trim() : source.value; if (!text) return; await navigator.clipboard.writeText(text); toast('コピーしました'); }));
 $('.settings-trigger').addEventListener('click', openSettings); $('.close-settings').addEventListener('click', closeSettings); $('#scrim').addEventListener('click', closeSettings);
 $('#toggleKey').addEventListener('click', () => { const isPassword = $('#apiKey').type === 'password'; $('#apiKey').type = isPassword ? 'text' : 'password'; $('#toggleKey').textContent = isPassword ? '隠す' : '表示'; });
@@ -359,9 +382,7 @@ $('#targetSelect').innerHTML = Object.entries(targetLanguages).map(([value, labe
 $('#customTarget').value = localStorage.getItem('lingo-target-custom') || '';
 renderTarget();
 $('#targetSelect').addEventListener('change', () => {
-  target = $('#targetSelect').value;
-  localStorage.setItem('lingo-target', target);
-  renderTarget();
+  setTarget($('#targetSelect').value);
   if (target === customTarget && !$('#customTarget').value.trim()) { $('#customTarget').focus(); return; }
   if (source.value.trim()) scheduleTranslation();
 });
