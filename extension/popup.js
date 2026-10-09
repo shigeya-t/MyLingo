@@ -1,4 +1,4 @@
-import { translationModes, targetLanguages, loadSettings, modelFor, requestUnlock, unlockVault, missingKeyMessage } from './lib/providers.js';
+import { translationModes, targetLanguages, customTarget, targetLanguageName, loadSettings, modelFor, requestUnlock, unlockVault, missingKeyMessage } from './lib/providers.js';
 
 const $ = (selector) => document.querySelector(selector);
 let tabId = null;
@@ -69,7 +69,9 @@ async function connectToTab() {
 async function init() {
   const settings = await loadSettings();
   fillSelect($('#modeSelect'), Object.entries(translationModes).map(([key, mode]) => [key, mode.label]), settings.mode);
-  fillSelect($('#targetSelect'), Object.entries(targetLanguages), settings.target);
+  fillSelect($('#targetSelect'), [...Object.entries(targetLanguages), [customTarget, 'その他…']], settings.target);
+  $('#customTarget').value = settings.customTarget;
+  $('#customTarget').hidden = settings.target !== customTarget;
   renderProvider(settings);
   await connectToTab();
   if (pageState) renderProvider(settings);
@@ -79,13 +81,21 @@ async function init() {
     renderProvider(await loadSettings());
   }));
   $('#modeSelect').addEventListener('change', () => chrome.storage.local.set({ mode: $('#modeSelect').value }));
-  $('#targetSelect').addEventListener('change', () => chrome.storage.local.set({ target: $('#targetSelect').value }));
+  $('#targetSelect').addEventListener('change', () => {
+    const target = $('#targetSelect').value;
+    chrome.storage.local.set({ target });
+    $('#customTarget').hidden = target !== customTarget;
+    if (target === customTarget) $('#customTarget').focus();
+  });
+  $('#customTarget').addEventListener('input', () => chrome.storage.local.set({ customTarget: $('#customTarget').value.trim() }));
+  $('#customTarget').addEventListener('keydown', (event) => { if (event.key === 'Enter') $('#actionButton').click(); });
   $('#openOptions').addEventListener('click', () => chrome.runtime.openOptionsPage());
   $('#unlockPassphrase').addEventListener('keydown', (event) => { if (event.key === 'Enter') $('#actionButton').click(); });
   $('#actionButton').addEventListener('click', async () => {
     const restore = pageState && (pageState.status === 'translating' || pageState.status === 'translated' || (pageState.status === 'error' && pageState.done));
     if (!restore) {
       let current = await loadSettings();
+      if (!targetLanguageName(current)) { showStatus('翻訳先の言語名を入力してください。', 'warn'); $('#customTarget').focus(); return; }
       if (current.locked && current.lockMethod === 'passphrase') {
         const passphrase = $('#unlockPassphrase').value;
         if (!passphrase) { $('#unlockPassphrase').focus(); return; }

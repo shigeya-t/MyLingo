@@ -12,24 +12,7 @@ const translationModes = {
   technical: 'Phrase the translation using precise technical terminology, as it would appear in technical documentation, keeping domain-specific terms accurate and consistent.'
 };
 
-// Values are the language names given to the model; labels are shown in the dropdown.
-const targetLanguages = {
-  English: '英語',
-  Japanese: '日本語',
-  'Simplified Chinese': '中国語（簡体字）',
-  'Traditional Chinese': '中国語（繁体字）',
-  Korean: '韓国語',
-  French: 'フランス語',
-  German: 'ドイツ語',
-  Spanish: 'スペイン語',
-  Italian: 'イタリア語',
-  Portuguese: 'ポルトガル語',
-  Russian: 'ロシア語',
-  Vietnamese: 'ベトナム語',
-  Thai: 'タイ語',
-  Indonesian: 'インドネシア語'
-};
-const customTarget = 'other';
+const { targets: targetLanguages, custom: customTarget } = MyLingoLanguages;
 
 let provider = localStorage.getItem('lingo-provider') || 'openai';
 let target = localStorage.getItem('lingo-target') || 'English';

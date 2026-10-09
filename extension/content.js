@@ -35,8 +35,11 @@ if (!window.__myLingoLoaded) {
   }
 
   function alreadyInTarget(text, target) {
-    if (target === 'ja') return /[぀-ヿ]/.test(text);
-    return /^[\x00-\x7f -⁯]*$/.test(text);
+    // Only skips text that is clearly in the target already; for other
+    // languages the model returns such segments unchanged.
+    if (target === 'Japanese') return /[぀-ヿ]/.test(text);
+    if (target === 'English') return /^[\x00-\x7f -⁯]*$/.test(text);
+    return false;
   }
 
   function shouldSkipElement(element) {
@@ -194,6 +197,7 @@ if (!window.__myLingoLoaded) {
     if (state.status === 'translating' || state.status === 'translated') return state;
     const { settings } = await chrome.runtime.sendMessage({ type: 'getSettings' });
     const { target } = settings;
+    if (!target) return failStart(new Error('翻訳先の言語が未入力です。ポップアップの「その他」に言語名を入力してください。'));
     seen = new WeakSet(); // Lets a retry after an error pick up segments that failed.
     firstBatch = true;
     setState({ status: 'translating', done: 0, total: 0, error: '', target });

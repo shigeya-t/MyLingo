@@ -14,9 +14,18 @@ export const translationModes = {
   technical: { label: '技術文書向け', prompt: 'Phrase the translation using precise technical terminology, as it would appear in technical documentation, keeping domain-specific terms accurate and consistent.' }
 };
 
-export const targetLanguages = { en: '英語', ja: '日本語' };
+import './languages.js';
 
-export const defaults = { provider: 'openai', mode: 'faithful', target: 'en', apiKeys: {}, models: {}, rateLimits: {} };
+export const { targets: targetLanguages, custom: customTarget } = globalThis.MyLingoLanguages;
+// Values saved by earlier versions, which offered only these (and 'auto').
+const legacyTargets = { en: 'English', ja: 'Japanese', auto: 'English' };
+
+// The language name given to the model, or '' when "その他" is chosen but left blank.
+export function targetLanguageName(settings) {
+  return settings.target === customTarget ? (settings.customTarget || '').trim() : settings.target;
+}
+
+export const defaults = { provider: 'openai', mode: 'faithful', target: 'English', customTarget: '', apiKeys: {}, models: {}, rateLimits: {} };
 
 // With encryption on, chrome.storage.local holds only the encrypted `vault`
 // (see lib/vault.js); the options page puts the decrypted keys in
@@ -24,7 +33,8 @@ export const defaults = { provider: 'openai', mode: 'faithful', target: 'en', ap
 export async function loadSettings() {
   const { vault, ...stored } = await chrome.storage.local.get([...Object.keys(defaults), 'vault']);
   const settings = { ...defaults, ...stored };
-  if (!targetLanguages[settings.target]) settings.target = defaults.target; // e.g. the removed 'auto'
+  settings.target = legacyTargets[settings.target] || settings.target;
+  if (settings.target !== customTarget && !targetLanguages[settings.target]) settings.target = defaults.target;
   if (vault) {
     const { apiKeys } = await chrome.storage.session.get('apiKeys');
     settings.apiKeys = apiKeys || {};
