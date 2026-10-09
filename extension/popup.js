@@ -18,7 +18,8 @@ function renderProvider(settings) {
   });
   $('#modelLabel').textContent = modelFor(settings);
   const hasKey = Boolean(settings.apiKeys?.[settings.provider]);
-  if (!hasKey) showStatus(`${configs[settings.provider].name} のAPIキーが未設定です。右上の設定から入力してください。`, 'warn');
+  if (settings.locked) showStatus('APIキーがロックされています。右上の設定からロックを解除してください。', 'warn');
+  else if (!hasKey) showStatus(`${configs[settings.provider].name} のAPIキーが未設定です。右上の設定から入力してください。`, 'warn');
   else if (!pageState || pageState.status === 'idle') showStatus('');
 }
 

@@ -18,9 +18,17 @@ export const targetLanguages = { auto: '自動（日本語⇄英語）', ja: '�
 
 export const defaults = { provider: 'openai', mode: 'faithful', target: 'auto', apiKeys: {}, models: {}, rateLimits: {} };
 
+// With encryption on, chrome.storage.local holds only the encrypted `vault`
+// (see lib/vault.js); the options page puts the decrypted keys in
+// chrome.storage.session, which stays in memory until the browser closes.
 export async function loadSettings() {
-  const stored = await chrome.storage.local.get(Object.keys(defaults));
+  const { vault, ...stored } = await chrome.storage.local.get([...Object.keys(defaults), 'vault']);
   const settings = { ...defaults, ...stored };
+  if (vault) {
+    const { apiKeys } = await chrome.storage.session.get('apiKeys');
+    settings.apiKeys = apiKeys || {};
+    settings.locked = !apiKeys;
+  }
   // An unset limit falls back to the provider default; 0 means unlimited.
   settings.rateLimits = Object.fromEntries(Object.entries(configs).map(([id, config]) => [id, settings.rateLimits[id] ?? config.rateLimit ?? 0]));
   return settings;
