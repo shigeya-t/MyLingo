@@ -152,6 +152,10 @@
     return error?.message || '予期しないエラーが発生しました。';
   }
 
+  // 1Password and similar password managers take over passkey creation but
+  // cannot save passkeys for some pages (extension pages in particular).
+  const passkeyCreateHint = ' 1Password などのパスワード管理ツールは、このページのパスキーを保存できないことがあります。その画面でセキュリティキーなど別の方法を選んでブラウザ標準の画面で作成するか、パスフレーズで暗号化してください。';
+
   const escape = (text) => text.replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char]);
 
   // `handlers.state()` returns { method, unlocked, sessionUnlocked }:
@@ -205,7 +209,7 @@
       root.innerHTML = html + (error ? `<p class="vault-error" role="alert">${escape(error)}</p>` : '');
     }
 
-    async function run(action, { quiet = false } = {}) {
+    async function run(action) {
       const value = (id) => root.querySelector(`#${id}`)?.value || '';
       const target = selected;
       if (action === 'cancel') { selected = null; error = ''; await render(); return; }
@@ -220,9 +224,8 @@
         if (action === 'reset') await handlers.reset();
         selected = null;
       } catch (caught) {
-        // A passkey prompt started without a click may be refused or dismissed;
-        // the unlock button is right there, so stay quiet about it.
-        error = quiet && caught?.name === 'NotAllowedError' ? '' : friendlyError(caught);
+        error = friendlyError(caught);
+        if (action === 'apply' && target === 'passkey' && caught?.name === 'NotAllowedError') error += passkeyCreateHint;
       }
       busy = false;
       await render();
@@ -243,19 +246,9 @@
       event.preventDefault();
       run(root.querySelector('[data-vault="apply"]') ? 'apply' : 'unlock');
     });
-    // Starts unlocking right away: asks for the passkey, or focuses the
-    // passphrase field. Used when a translation needs the locked keys.
-    async function startUnlock() {
-      const { method, unlocked } = handlers.state();
-      if (!method || unlocked || busy) return;
-      await render();
-      if (method === 'passkey') await run('unlock', { quiet: true });
-      else root.querySelector('#vaultPassphrase')?.focus();
-    }
-
     render();
-    return { render, startUnlock };
+    return { render };
   }
 
-  globalThis.MyLingoVault = { create, unlock, reseal, mountPanel };
+  globalThis.MyLingoVault = { create, unlock, reseal, mountPanel, friendlyError };
 })();

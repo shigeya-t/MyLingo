@@ -28,6 +28,7 @@ export async function loadSettings() {
     const { apiKeys } = await chrome.storage.session.get('apiKeys');
     settings.apiKeys = apiKeys || {};
     settings.locked = !apiKeys;
+    settings.lockMethod = vault.method;
   }
   // An unset limit falls back to the provider default; 0 means unlimited.
   settings.rateLimits = Object.fromEntries(Object.entries(configs).map(([id, config]) => [id, settings.rateLimits[id] ?? config.rateLimit ?? 0]));
@@ -35,10 +36,41 @@ export async function loadSettings() {
 }
 
 // A translation started while the keys are locked waits in
-// chrome.storage.session; the options page opens to unlock and then runs it.
+// chrome.storage.session while a small unlock window (unlock.html) asks for
+// the passkey or passphrase; the window then runs it with runPending().
+// Popups close when Chrome shows its passkey dialog, hence the window.
 export async function requestUnlock(tabId, message, frameId = 0) {
   await chrome.storage.session.set({ pendingAction: { tabId, frameId, message, at: Date.now() } });
-  await chrome.tabs.create({ url: chrome.runtime.getURL('options.html?unlock') });
+  await chrome.windows.create({ url: chrome.runtime.getURL('unlock.html'), type: 'popup', width: 400, height: 340, focused: true });
+}
+
+const PENDING_TTL = 10 * 60 * 1000;
+
+export async function runPending() {
+  const { pendingAction: pending } = await chrome.storage.session.get('pendingAction');
+  await chrome.storage.session.remove('pendingAction');
+  if (!pending || Date.now() - pending.at > PENDING_TTL) return;
+  const { tabId, frameId, message } = pending;
+  const tab = await chrome.tabs.update(tabId, { active: true });
+  await chrome.windows.update(tab.windowId, { focused: true });
+  await chrome.scripting.executeScript({ target: { tabId, frameIds: [frameId] }, files: ['content.js'] });
+  await chrome.tabs.sendMessage(tabId, message, { frameId });
+}
+
+// Decrypts the keys into chrome.storage.session. Pages that call this load
+// lib/vault.js, which defines MyLingoVault.
+export async function unlockVault(passphrase) {
+  const { vault } = await chrome.storage.local.get('vault');
+  const { keys } = await MyLingoVault.unlock(vault, passphrase);
+  await chrome.storage.session.set({ apiKeys: keys });
+  return keys;
+}
+
+export function missingKeyMessage(settings) {
+  const name = configs[settings.provider].name;
+  return settings.lockMethod
+    ? `暗号化して保存したAPIキーに ${name} のキーが含まれていません。設定画面でロックを解除してから入力してください。`
+    : `${name} のAPIキーが未設定です。設定画面から入力してください。`;
 }
 
 export function modelFor(settings, provider = settings.provider) {

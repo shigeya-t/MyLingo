@@ -28,11 +28,13 @@
       <select id="targetSelect" class="select"></select>
     </div>
 
+    <input id="unlockPassphrase" class="model-input" type="password" autocomplete="current-password" placeholder="パスフレーズ" aria-label="ロック解除のパスフレーズ" hidden />
     <button id="actionButton" class="primary-button" disabled>このページを翻訳</button>
     <div class="progress" id="progress" hidden><span id="progressBar"></span></div>
     <p class="status" id="status" aria-live="polite"></p>
 
     <footer class="popup-footer"><span id="modelLabel" class="model-label"></span><span>Alt+Shift+T で切替</span></footer>
+    <script src="lib/vault.js"></script>
     <script type="module" src="popup.js"></script>
   </body>
 </html>
