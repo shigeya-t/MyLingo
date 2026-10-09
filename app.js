@@ -1,6 +1,6 @@
 const configs = {
-  openai: { name: 'ChatGPT', model: 'gpt-5.6-luna', key: 'lingo-openai-key', modelKey: 'lingo-openai-model' },
-  anthropic: { name: 'Claude', model: 'claude-haiku-4-5', key: 'lingo-anthropic-key', modelKey: 'lingo-anthropic-model' },
+  openai: { name: 'ChatGPT', model: 'gpt-6-luna', key: 'lingo-openai-key', modelKey: 'lingo-openai-model' },
+  anthropic: { name: 'Claude', model: 'claude-haiku-5-5', key: 'lingo-anthropic-key', modelKey: 'lingo-anthropic-model' },
   gemini: { name: 'Gemini', model: 'gemini-3.5-flash-lite', key: 'lingo-gemini-key', modelKey: 'lingo-gemini-model' }
 };
 
@@ -55,7 +55,8 @@ function setProvider(next) {
     button.classList.toggle('active', active);
     button.setAttribute('aria-selected', active);
   });
-  $('#modelLabel').textContent = providerConfig().name;
+  $('#modelLabel').textContent = currentModel();
+  $('#modelLabel').title = `${providerConfig().name} のモデル`;
   if ($('#settingsPanel').classList.contains('open')) fillSettings();
 }
 
@@ -112,7 +113,7 @@ function getOpenAIText(data) {
 // token. These ask each model family for its lowest thinking setting; models
 // that reject them are remembered and called without (see requestTranslation).
 function reasoningEffort(model) {
-  if (/^gpt-5\.\d/.test(model)) return 'none';
+  if (/^gpt-(5\.\d|[6-9])/.test(model)) return 'none';
   if (/^gpt-5(-|$)/.test(model)) return 'minimal';
   if (/^o\d/.test(model)) return 'low';
   return null;
@@ -272,10 +273,11 @@ $('#saveSettings').addEventListener('click', async () => {
   const config = providerConfig();
   if (!vaultLocked()) await saveApiKey(provider, $('#apiKey').value.trim());
   localStorage.setItem(config.modelKey, $('#modelInput').value.trim() || config.model);
-  closeSettings(); toast(`${config.name} の設定を保存しました`); if (source.value.trim()) scheduleTranslation();
+  $('#modelLabel').textContent = currentModel(); closeSettings(); toast(`${config.name} の設定を保存しました`); if (source.value.trim()) scheduleTranslation();
 });
 $('#themeToggle').addEventListener('click', () => { const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light'; localStorage.setItem('lingo-theme', next); applyTheme(next); });
 $('#modeSelect').addEventListener('change', () => { mode = $('#modeSelect').value; localStorage.setItem('lingo-mode', mode); if (source.value.trim()) scheduleTranslation(); });
 $('#modeSelect').value = mode;
 setProvider(provider);
 initTheme();
+$('#commitHash').textContent = globalThis.MYLINGO_COMMIT || '';
