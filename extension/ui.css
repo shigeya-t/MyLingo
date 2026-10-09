@@ -46,3 +46,5 @@ input::placeholder { color:var(--placeholder); }
 .vault-link { align-self:flex-start; border:0; background:transparent; color:var(--muted); font-size:12px; padding:6px 0 0; text-decoration:underline; }
 .vault-error { margin:4px 0 0; color:var(--error); font-size:13px; line-height:1.7; }
 #vaultPanel { display:flex; flex-direction:column; gap:8px; }
+.vault-options { display:grid; gap:6px; } .vault-option { display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border:1px solid var(--line); border-radius:10px; cursor:pointer; } .vault-option:has(input:checked) { border-color:var(--lime-border); background:var(--input-bg); } .vault-option:has(input:disabled:not(:checked)) { opacity:.5; cursor:not-allowed; }
+.vault-option input { margin:3px 0 0; accent-color:var(--lime-ink); } .vault-option strong { display:block; font-size:13px; color:var(--text); } .vault-option small { display:block; font-size:12px; color:var(--muted); line-height:1.6; margin-top:2px; }

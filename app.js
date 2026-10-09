@@ -220,7 +220,7 @@ const vaultPanel = MyLingoVault.mountPanel($('#vaultPanel'), {
   state: () => ({ method: vault?.method || null, unlocked: Boolean(unlocked) }),
   async protect(method, passphrase) {
     // Include a key typed into the form but not saved yet.
-    const keys = { ...plainKeys(), ...($('#apiKey').value.trim() && { [provider]: $('#apiKey').value.trim() }) };
+    const keys = { ...(unlocked?.keys || plainKeys()), ...($('#apiKey').value.trim() && { [provider]: $('#apiKey').value.trim() }) };
     const created = await MyLingoVault.create(method, keys, passphrase);
     storeVault(created.vault);
     unlocked = { keys, key: created.key };

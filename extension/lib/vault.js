@@ -129,54 +129,67 @@
   // method is null (not encrypted), 'passkey' or 'passphrase'; unlocked means
   // this page holds the key; sessionUnlocked (extension only) means the keys
   // are usable until the browser closes although this page cannot edit them.
-  // The other handlers perform the action and may throw; the panel re-renders.
+  // `handlers.protect(method, passphrase)` encrypts the keys with `method`,
+  // replacing the current encryption while unlocked; `unprotect()` stores them
+  // unencrypted again. The others are unlock, lock and reset. Handlers may
+  // throw; the panel re-renders afterwards.
   function mountPanel(root, handlers) {
-    let choosingPassphrase = false, busy = false, error = '';
+    let selected = null, busy = false, error = '';
 
     async function render() {
       const { method, unlocked, sessionUnlocked } = handlers.state();
+      const passkey = await passkeySupported();
+      const current = method || 'none', locked = Boolean(method && !unlocked);
+      const choice = locked ? current : selected ?? current;
       const button = (action, label, primary) => `<button type="button" class="vault-button${primary ? ' primary' : ''}" data-vault="${action}"${busy ? ' disabled' : ''}>${label}</button>`;
-      let html;
-      if (!method && choosingPassphrase) {
-        html = `<p class="vault-status">パスフレーズを決めてください。忘れると復号できないため、1Password やキーチェーンに保管しておくと安心です。</p>
-          <input class="vault-input" id="vaultPassphrase" type="password" autocomplete="new-password" placeholder="パスフレーズ（${MIN_PASSPHRASE}文字以上）" />
-          <input class="vault-input" id="vaultConfirm" type="password" autocomplete="new-password" placeholder="もう一度入力" />
-          <div class="vault-buttons">${button('protect-passphrase', '暗号化する', true)}${button('cancel', 'キャンセル')}</div>`;
-      } else if (!method) {
-        const passkey = await passkeySupported();
-        html = `<p class="vault-status">APIキーは暗号化されずにこのブラウザに保存されています。暗号化すると、使い始めるときに認証が必要になります。</p>
-          <div class="vault-buttons">${passkey ? button('protect-passkey', 'パスキー（Touch ID など）で暗号化', true) : ''}${button('choose-passphrase', 'パスフレーズで暗号化', !passkey)}</div>`;
-      } else if (unlocked) {
-        html = `<p class="vault-status ok">APIキーは${methodNames[method]}で暗号化して保存されています。いまはロック解除中です。</p>
-          <div class="vault-buttons">${button('lock', 'ロックする', true)}${button('unprotect', '暗号化をやめる')}</div>`;
-      } else {
+      const option = (value, label, note, unavailable) => `<label class="vault-option"><input type="radio" name="vaultMethod" value="${value}"${value === choice ? ' checked' : ''}${unavailable || locked || busy ? ' disabled' : ''} /><span><strong>${label}</strong><small>${note}</small></span></label>`;
+      let html = `<div class="vault-options" role="radiogroup" aria-label="APIキーの保存方法">
+        ${option('none', '暗号化しない', 'これまでどおり、このブラウザにそのまま保存します。')}
+        ${option('passkey', 'パスキー（Touch ID など）で暗号化', passkey ? '使い始めるときに Touch ID などで解除します。' : 'このブラウザでは使えません。', !passkey && current !== 'passkey')}
+        ${option('passphrase', 'パスフレーズで暗号化', '使い始めるときにパスフレーズを入力して解除します。')}
+      </div>`;
+      if (locked) {
         const status = sessionUnlocked
-          ? 'ブラウザを閉じるまでロック解除中です。キーを確認・変更するには、もう一度認証してください。'
-          : 'APIキーはロックされています。翻訳するにはロックを解除してください。';
+          ? 'ブラウザを閉じるまでロック解除中です。キーの確認・変更や保存方法の変更には、もう一度認証してください。'
+          : 'APIキーはロックされています。翻訳や保存方法の変更には、ロックを解除してください。';
         const input = method === 'passphrase' ? '<input class="vault-input" id="vaultPassphrase" type="password" autocomplete="current-password" placeholder="パスフレーズ" />' : '';
-        html = `<p class="vault-status warn">${status}</p>${input}
+        html += `<p class="vault-status warn">${status}</p>${input}
           <div class="vault-buttons">${button('unlock', method === 'passkey' ? 'パスキー（Touch ID など）で解除' : '解除する', true)}${sessionUnlocked ? button('lock', 'ロックする') : ''}</div>
           <button type="button" class="vault-link" data-vault="reset"${busy ? ' disabled' : ''}>${method === 'passkey' ? 'パスキーを使えない場合' : 'パスフレーズを忘れた場合'}（保存したキーを削除）</button>`;
+      } else if (choice !== current) {
+        const apply = `<div class="vault-buttons">${button('apply', 'この方法に変更', true)}${button('cancel', 'キャンセル')}</div>`;
+        if (choice === 'passphrase') {
+          html += `<p class="vault-status">パスフレーズを決めてください。忘れると復号できないため、1Password やキーチェーンに保管しておくと安心です。</p>
+            <input class="vault-input" id="vaultPassphrase" type="password" autocomplete="new-password" placeholder="パスフレーズ（${MIN_PASSPHRASE}文字以上）" />
+            <input class="vault-input" id="vaultConfirm" type="password" autocomplete="new-password" placeholder="もう一度入力" />${apply}`;
+        } else if (choice === 'passkey') {
+          html += `<p class="vault-status">変更すると、パスキーを作成する認証画面（Touch ID など）が開きます。</p>${apply}`;
+        } else {
+          html += `<p class="vault-status">暗号化をやめて、APIキーを暗号化せずにこのブラウザに保存します。</p>${apply}`;
+        }
+      } else if (method) {
+        html += `<p class="vault-status ok">APIキーは${methodNames[method]}で暗号化して保存されています。いまはロック解除中です。</p>
+          <div class="vault-buttons">${button('lock', 'ロックする', true)}</div>`;
+      } else {
+        html += '<p class="vault-status">APIキーは暗号化されずにこのブラウザに保存されています。</p>';
       }
       root.innerHTML = html + (error ? `<p class="vault-error" role="alert">${escape(error)}</p>` : '');
     }
 
     async function run(action) {
       const value = (id) => root.querySelector(`#${id}`)?.value || '';
-      if (action === 'choose-passphrase' || action === 'cancel') { choosingPassphrase = action === 'choose-passphrase'; error = ''; await render(); root.querySelector('#vaultPassphrase')?.focus(); return; }
-      if (action === 'protect-passphrase' && value('vaultPassphrase') !== value('vaultConfirm')) { error = '確認用のパスフレーズが一致しません。'; await render(); return; }
-      if (action === 'unprotect' && !confirm('暗号化をやめて、APIキーを暗号化せずに保存しますか？')) return;
+      const target = selected;
+      if (action === 'cancel') { selected = null; error = ''; await render(); return; }
+      if (action === 'apply' && target === 'passphrase' && value('vaultPassphrase') !== value('vaultConfirm')) { error = '確認用のパスフレーズが一致しません。'; await render(); return; }
       if (action === 'reset' && !confirm('暗号化して保存したAPIキーを削除します。キーはあとで入力し直してください。よろしいですか？')) return;
       const passphrase = value('vaultPassphrase');
       busy = true; error = ''; await render();
       try {
-        if (action === 'protect-passkey') await handlers.protect('passkey');
-        if (action === 'protect-passphrase') await handlers.protect('passphrase', passphrase);
+        if (action === 'apply') await (target === 'none' ? handlers.unprotect() : handlers.protect(target, passphrase));
         if (action === 'unlock') await handlers.unlock(passphrase);
         if (action === 'lock') await handlers.lock();
-        if (action === 'unprotect') await handlers.unprotect();
         if (action === 'reset') await handlers.reset();
-        choosingPassphrase = false;
+        selected = null;
       } catch (caught) {
         error = friendlyError(caught);
       }
@@ -188,10 +201,16 @@
       const action = event.target.closest('[data-vault]')?.dataset.vault;
       if (action) run(action);
     });
+    root.addEventListener('change', async (event) => {
+      if (event.target.name !== 'vaultMethod') return;
+      selected = event.target.value; error = '';
+      await render();
+      root.querySelector('#vaultPassphrase')?.focus();
+    });
     root.addEventListener('keydown', (event) => {
       if (event.key !== 'Enter' || !event.target.matches('.vault-input')) return;
       event.preventDefault();
-      run(handlers.state().method ? 'unlock' : 'protect-passphrase');
+      run(root.querySelector('[data-vault="apply"]') ? 'apply' : 'unlock');
     });
     render();
     return { render };
