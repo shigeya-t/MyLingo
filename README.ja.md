@@ -4,7 +4,7 @@
 
 ChatGPT、Claude、Gemini を切り替えて使える、シンプルなブラウザ翻訳ツールです。英語・日本語をはじめ、好きな言語へ翻訳できます。Webアプリと、表示中のWebページを翻訳するChrome拡張機能があります。
 
-![MyLingo の画面](assets/mylingo-screenshot.png)
+![MyLingo の画面](assets/mylingo-screenshot-ja.png)
 
 ## 特長
 
@@ -88,7 +88,7 @@ git config core.hooksPath .githooks && .githooks/write-version
 
 `extension/` フォルダには、表示中のWebページをまるごと翻訳するChrome拡張機能が入っています。Webアプリと同じく ChatGPT / Claude / Gemini を切り替えて使えます。
 
-<img src="assets/extension-popup.png" alt="MyLingo Chrome拡張機能のポップアップ画面" width="340">
+<img src="assets/extension-popup-ja.png" alt="MyLingo Chrome拡張機能のポップアップ画面" width="340">
 
 ### 主な機能
 
