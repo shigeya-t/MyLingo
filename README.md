@@ -35,7 +35,7 @@ ChatGPT、Claude、Gemini を切り替えて使える、日本語・英語向け
 
 ### コミットハッシュの表示
 
-Webアプリのフッターと拡張機能のポップアップには、動いているコードのコミットハッシュが小さく表示されます。ハッシュは git フックが `extension/lib/version.js`（git管理外）に書き出すので、クローン後に一度だけ次を実行してください。以降はコミット・チェックアウト・pull のたびに自動で更新されます。
+Webアプリの設定パネルと拡張機能の設定画面の下部に、動いているコードのコミットハッシュが表示されます。ハッシュは git フックが `extension/lib/version.js`（git管理外）に書き出すので、クローン後に一度だけ次を実行してください。以降はコミット・チェックアウト・pull のたびに自動で更新されます。
 
 ```sh
 git config core.hooksPath .githooks && .githooks/write-version

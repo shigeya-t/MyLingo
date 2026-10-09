@@ -116,4 +116,5 @@ const vaultPanel = MyLingoVault.mountPanel($('#vaultPanel'), {
   }
 });
 
+$('#commitHash').textContent = globalThis.MYLINGO_COMMIT || '';
 refresh();

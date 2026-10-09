@@ -105,5 +105,4 @@ async function init() {
   });
 }
 
-$('#commitHash').textContent = globalThis.MYLINGO_COMMIT || '';
 init();
