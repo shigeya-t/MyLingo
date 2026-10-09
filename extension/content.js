@@ -17,6 +17,10 @@ if (!window.__myLingoLoaded) {
   // nodes, which `originals` does not know; restoring looks those up here so
   // a retranslation never starts from already translated text.
   const sources = new Map();
+  // Nodes added after translation started that hold one of our translations.
+  // Only these are restored through `sources`: text the page had from the
+  // start may match a translation by chance and must be left alone.
+  const copies = new Set();
   let seen = new WeakSet(); // Nodes already queued, so dynamic content is not translated twice.
   let state = { status: 'idle', done: 0, total: 0, error: '', target: '', mode: '' };
   let generation = 0; // Bumped on restore so late replies are ignored.
@@ -45,11 +49,10 @@ if (!window.__myLingoLoaded) {
   }
 
   function alreadyInTarget(text, target) {
-    // Only skips text that is clearly in the target already; for other
-    // languages the model returns such segments unchanged.
-    if (target === 'Japanese') return /[぀-ヿ]/.test(text);
-    if (target === 'English') return /^[\x00-\x7f -⁯]*$/.test(text);
-    return false;
+    // Only skips text that is clearly in the target already: kana is only
+    // used in Japanese, while plain Latin letters are shared by many
+    // languages. The model returns other segments in the target unchanged.
+    return target === 'Japanese' && /[぀-ヿ]/.test(text);
   }
 
   function shouldSkipElement(element) {
@@ -71,7 +74,7 @@ if (!window.__myLingoLoaded) {
         if (seen.has(node) || originals.has(node)) return NodeFilter.FILTER_REJECT;
         const text = node.data.trim();
         // A copy of our own translation; restoring puts its original back.
-        if (sources.has(text)) return NodeFilter.FILTER_REJECT;
+        if (sources.has(text)) { copies.add(node); return NodeFilter.FILTER_REJECT; }
         if (text.length < 2 || !/\p{L}/u.test(text) || alreadyInTarget(text, target)) return NodeFilter.FILTER_REJECT;
         return shouldSkipElement(node.parentElement) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
       }
@@ -173,6 +176,9 @@ if (!window.__myLingoLoaded) {
       pump();
     } catch (error) {
       if (run !== generation) return;
+      // Replies still in flight for this run are dropped, so they cannot
+      // count inFlight below zero and report the page as translating again.
+      generation++;
       stopWatching();
       setState({ status: 'error', error: error.message });
     }
@@ -232,15 +238,13 @@ if (!window.__myLingoLoaded) {
     stopWatching();
     for (const [node, text] of originals) if (node.isConnected) node.data = text;
     originals.clear();
-    if (sources.size && document.body) {
-      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-      while (walker.nextNode()) {
-        const node = walker.currentNode, text = node.data.trim();
-        if (!sources.has(text) || isOwnUi(node.parentElement)) continue;
-        const leading = node.data.match(/^\s*/)[0], trailing = node.data.match(/\s*$/)[0];
-        node.data = leading + sources.get(text) + trailing;
-      }
+    for (const node of copies) {
+      const text = node.data.trim();
+      if (!node.isConnected || !sources.has(text)) continue;
+      const leading = node.data.match(/^\s*/)[0], trailing = node.data.match(/\s*$/)[0];
+      node.data = leading + sources.get(text) + trailing;
     }
+    copies.clear();
     sources.clear();
     setState({ status: 'idle', done: 0, total: 0, error: '' });
     return state;
