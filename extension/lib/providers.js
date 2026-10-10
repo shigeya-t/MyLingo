@@ -2,8 +2,7 @@
 export const configs = {
   openai: { name: 'ChatGPT', model: 'gpt-6-luna' },
   anthropic: { name: 'Claude', model: 'claude-haiku-5-5' },
-  // The Gemini free tier allows 15 requests per minute; stay a little under it.
-  gemini: { name: 'Gemini', model: 'gemini-3.5-flash-lite', rateLimit: 12 }
+  gemini: { name: 'Gemini', model: 'gemini-3.5-flash-lite' }
 };
 
 // Labels are the `mode.<key>` messages in i18n.js.
@@ -28,7 +27,7 @@ export function targetLanguageName(settings) {
 }
 
 // `target` left empty means MyLingoI18n.defaultTarget(), which follows the UI language.
-export const defaults = { provider: 'openai', mode: 'faithful', target: '', customTarget: '', apiKeys: {}, models: {}, rateLimits: {}, uiLanguage: '' };
+export const defaults = { provider: 'openai', mode: 'faithful', target: '', customTarget: '', apiKeys: {}, models: {}, rateLimits: {}, rateLimitsVersion: 0, uiLanguage: '' };
 
 // With encryption on, chrome.storage.local holds only the encrypted `vault`
 // (see lib/vault.js); the options page puts the decrypted keys in
@@ -47,8 +46,17 @@ export async function loadSettings() {
     settings.locked = !apiKeys;
     settings.lockMethod = vault.method;
   }
-  // An unset limit falls back to the provider default; 0 means unlimited.
-  settings.rateLimits = Object.fromEntries(Object.entries(configs).map(([id, config]) => [id, settings.rateLimits[id] ?? config.rateLimit ?? 0]));
+  // Earlier versions limited Gemini to 12 per minute by default and saved that
+  // value along with any other setting, so it cannot be told apart from a
+  // limit the user chose; it is dropped once. The options page saves the
+  // version, so a 12 set after this is kept.
+  if (!settings.rateLimitsVersion) {
+    if (settings.rateLimits.gemini === 12) settings.rateLimits = { ...settings.rateLimits, gemini: 0 };
+    await chrome.storage.local.set({ rateLimits: settings.rateLimits, rateLimitsVersion: 1 });
+  }
+  // No limit unless the user sets one (0 means unlimited); a 429 is retried
+  // after the wait the service asks for (see translator.js).
+  settings.rateLimits = Object.fromEntries(Object.keys(configs).map((id) => [id, settings.rateLimits[id] ?? 0]));
   return settings;
 }
 
