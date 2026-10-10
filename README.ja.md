@@ -112,6 +112,8 @@ git config core.hooksPath .githooks && .githooks/write-version
 
 拡張機能の設定は `chrome.storage.local` に保存されるため、Webアプリとは別に入力が必要です。
 
+Chrome ウェブストアには限定公開で登録する予定です（手順は [store/README.md](store/README.md)）。ストアからインストールした場合、上の1・2は不要です。プライバシーポリシーは [docs/privacy/](docs/privacy/ja.html)（公開URL: <https://shigeya-t.github.io/MyLingo/privacy/ja.html>）にあります。
+
 リポジトリを更新（pull・ブランチの切り替えなど）したら、`chrome://extensions` で MyLingo の再読み込みボタン（↻）を押してください。ポップアップや設定画面は開くたびに新しいファイルを読み込みますが、翻訳を行うバックグラウンド（Service Worker）は再読み込みするまで古いコードのまま動くため、食い違いでエラーになることがあります。再読み込みするとAPIキーの暗号化のロックも掛かり直します。
 
 ### Gemini の無料枠について
@@ -156,6 +158,9 @@ Gemini APIの無料枠には1分あたりのリクエスト数の上限（例: `
 ├── AGENTS.md    # AIコーディングエージェント向けの開発メモ
 ├── assets/      # アイコン・README 用の画像
 ├── .githooks/   # コミットハッシュを version.js に書き出すフック
+├── docs/privacy/ # プライバシーポリシー（GitHub Pages で公開）
+├── store/       # Chrome ウェブストアの掲載情報・画像・公開手順
+├── scripts/     # package-extension.sh: ストアにアップロードする zip を作る
 └── extension/   # Chrome拡張機能（Webページ翻訳）
     ├── manifest.json
     ├── background.js    # API呼び出し・右クリックメニュー・ショートカット

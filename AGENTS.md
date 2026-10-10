@@ -26,6 +26,9 @@ MyLingo は ChatGPT / Claude / Gemini を切り替えて使う翻訳ツールで
 | `extension/lib/languages.js` | 翻訳先の言語一覧。**Webアプリと共用** |
 | `extension/_locales/` | manifest の説明文など（Chrome の言語に従う） |
 | `extension/lib/version.js` | git フックが生成するコミットハッシュ。git管理外で、なくても動く |
+| `scripts/package-extension.sh` | ストアにアップロードする zip（`dist/`）を作る。`lib/version.js` を書き込んでから固める |
+| `store/` | Chrome ウェブストアの掲載テキスト（`listing.md`）、画像（`images/`、`capture.mjs` で再生成）、公開手順（`README.md`） |
+| `docs/privacy/` | プライバシーポリシー（英語・日本語）。GitHub Pages（`main` の `/docs`）で公開する |
 
 ### 共用ファイルの決まり
 
@@ -81,6 +84,8 @@ git config core.hooksPath .githooks && .githooks/write-version   # コミット�
 - Webアプリでは、古いリクエストの応答が新しい入力を上書きしないよう、`latestRequest` で古い応答を捨てています。非同期処理を足すときは同じ配慮をしてください。
 - 拡張機能のページへのアクセス権は `activeTab` だけです。広い `host_permissions` は追加しないでください。
 - 機能や使い方を変えたら `README.md`（英語）と `README.ja.md`（日本語）の両方を更新します。
+- 権限・送信先・保存するデータを変えたら、`store/listing.md`（権限の理由・データ使用の申告）と `docs/privacy/` の両方（英語・日本語）も合わせて直します。審査ではコードの動作との一致を見られます。
+- ストアに出す版を作るときは `extension/manifest.json` の `version` を上げます。
 
 ## Git
 

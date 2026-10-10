@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MyLingo Privacy Policy</title>
+    <link rel="alternate" hreflang="ja" href="ja.html" />
+    <link rel="stylesheet" href="privacy.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="brand">MyLingo</span>
+        <nav>English | <a href="ja.html" lang="ja">日本語</a></nav>
+      </header>
+
+      <h1>Privacy Policy</h1>
+      <p class="updated">Last updated: October 10, 2026</p>
+
+      <p>This policy explains how the MyLingo Chrome extension (“MyLingo Page Translator”) and the MyLingo web app handle your data. MyLingo has no server of its own: the developer does not receive, collect or store any of your data.</p>
+
+      <div class="summary">
+        <ul>
+          <li>Text is sent only to the AI service you choose (OpenAI, Anthropic or Google), and only when you ask for a translation.</li>
+          <li>Your API keys and settings stay in your browser. API keys can be encrypted with a passkey or passphrase.</li>
+          <li>No analytics, no tracking, no ads. Your data is never sold or shared with anyone else.</li>
+        </ul>
+      </div>
+
+      <h2>Data MyLingo handles</h2>
+      <ul>
+        <li><strong>Website content</strong>: the text of the page you choose to translate, or the text you select and translate from the context menu. It is read only when you start a translation (from the toolbar popup, the context menu or the keyboard shortcut).</li>
+        <li><strong>API keys</strong>: the keys you enter for OpenAI, Anthropic or Google Gemini.</li>
+        <li><strong>Settings</strong>: the selected service, model names, target language, translation mode, request limits and UI language.</li>
+      </ul>
+      <p>MyLingo does not collect your browsing history, personal information, location or any other data.</p>
+
+      <h2>Where your data goes</h2>
+      <p>When you translate, the text to be translated is sent directly from your browser, using your own API key, to the service you selected:</p>
+      <ul>
+        <li>ChatGPT: OpenAI (<code>api.openai.com</code>) — <a href="https://openai.com/policies/privacy-policy/">OpenAI Privacy Policy</a></li>
+        <li>Claude: Anthropic (<code>api.anthropic.com</code>) — <a href="https://www.anthropic.com/legal/privacy">Anthropic Privacy Policy</a></li>
+        <li>Gemini: Google (<code>generativelanguage.googleapis.com</code>) — <a href="https://policies.google.com/privacy">Google Privacy Policy</a> and <a href="https://ai.google.dev/gemini-api/terms">Gemini API Terms</a></li>
+      </ul>
+      <p>How that service handles the text (for example, retention and whether it is used for training) is governed by its own terms and your account settings with it. Please review them before translating sensitive content. MyLingo sends nothing to any other destination.</p>
+
+      <h2>Storage</h2>
+      <ul>
+        <li>The extension stores API keys and settings in <code>chrome.storage.local</code> on your device. They are not synced to your Google account.</li>
+        <li>If you turn on API key encryption, the keys are stored only in encrypted form (AES-GCM). After you unlock them, the decrypted keys are kept in memory (<code>chrome.storage.session</code>) until the browser closes.</li>
+        <li>Translated text is not stored. It is shown on the page and discarded when you show the original again or leave the page.</li>
+        <li>The web app stores the same kinds of settings in the browser’s <code>localStorage</code>.</li>
+      </ul>
+
+      <h2>Permissions</h2>
+      <ul>
+        <li><code>activeTab</code> and <code>scripting</code>: to read and replace the text of the tab you are translating, only after you ask for a translation in that tab.</li>
+        <li><code>storage</code>: to keep your API keys and settings on your device.</li>
+        <li><code>contextMenus</code>: to add “Translate with MyLingo” to the right-click menu.</li>
+        <li>Access to <code>api.openai.com</code>, <code>api.anthropic.com</code> and <code>generativelanguage.googleapis.com</code>: to send translation requests to the service you choose.</li>
+      </ul>
+
+      <h2>Use of data</h2>
+      <p>Data is used only to provide translation, MyLingo’s single purpose. It is not sold, not transferred to third parties other than the AI service you choose, not used for advertising, and not used to determine creditworthiness or for lending purposes. The use of information received from Chrome APIs complies with the <a href="https://developer.chrome.com/docs/webstore/program-policies/policies">Chrome Web Store User Data Policy</a>, including the Limited Use requirements.</p>
+
+      <h2>Deleting your data</h2>
+      <p>Clear the API keys on the extension’s settings page, or remove the extension from <code>chrome://extensions</code>; removing it deletes everything it stored. For the web app, clear the site data for its address in your browser. To delete data held by an AI service, use that service’s account settings.</p>
+
+      <h2>Children</h2>
+      <p>MyLingo is not directed at children and does not knowingly collect any information from them.</p>
+
+      <h2>Changes</h2>
+      <p>If this policy changes, the updated version will be posted on this page with a new date.</p>
+
+      <h2>Contact</h2>
+      <p>For questions about this policy, please open an issue at <a href="https://github.com/shigeya-t/MyLingo/issues">github.com/shigeya-t/MyLingo/issues</a>.</p>
+    </main>
+  </body>
+</html>

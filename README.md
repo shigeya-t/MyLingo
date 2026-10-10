@@ -112,6 +112,8 @@ The `extension/` folder contains a Chrome extension that translates the whole pa
 
 The extension stores its settings in `chrome.storage.local`, so you need to enter them separately from the web app.
 
+The extension is being registered on the Chrome Web Store as an unlisted item (see [store/README.md](store/README.md), in Japanese, for the steps). If you install it from the store, skip steps 1 and 2. The privacy policy is in [docs/privacy/](docs/privacy/index.html) (published at <https://shigeya-t.github.io/MyLingo/privacy/>).
+
 After updating the repository (pull, switching branches, etc.), press MyLingo's reload button (↻) in `chrome://extensions`. The popup and settings page load the new files each time they open, but the background service worker that does the translating keeps running the old code until it is reloaded, and the mismatch can cause errors. Reloading also locks encrypted API keys again.
 
 ### About Gemini's free tier
@@ -156,6 +158,9 @@ Encryption protects against the browser's stored data being read or copied. It d
 ├── AGENTS.md    # Development notes for AI coding agents
 ├── assets/      # Icons and images for the README
 ├── .githooks/   # Hooks that write the commit hash to version.js
+├── docs/privacy/ # Privacy policy (published with GitHub Pages)
+├── store/       # Chrome Web Store listing text, images and publishing steps
+├── scripts/     # package-extension.sh: builds the zip to upload to the store
 └── extension/   # Chrome extension (page translation)
     ├── manifest.json
     ├── background.js    # API calls, context menu, shortcut
