@@ -8,7 +8,7 @@ export const configs = {
 
 // Labels are the `mode.<key>` messages in i18n.js.
 export const translationModes = {
-  faithful: { prompt: 'Phrase the translation as literally and faithfully as possible, staying close to the original sentence structure and word choice without paraphrasing or adding stylistic flourishes.' },
+  faithful: { prompt: 'Phrase the translation as literally and faithfully as possible, staying close to the original meaning and sentence structure without paraphrasing or adding stylistic flourishes.' },
   natural: { prompt: 'Phrase the translation so it reads naturally and fluently, as if originally written by a native speaker. Prioritize natural phrasing over literal wording.' },
   business: { prompt: 'Phrase the translation in formal, professional business language, as it would appear in a corporate document, email, or official correspondence.' },
   casual: { prompt: 'Phrase the translation in casual, conversational language, as it would appear in an everyday chat message or social media post.' },
