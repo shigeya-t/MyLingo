@@ -78,7 +78,7 @@ The UI is shown in Japanese when the browser's language is Japanese and in Engli
 
 ### Showing the commit hash
 
-The bottom of the web app's settings panel and the extension's settings page shows the commit hash of the running code. A git hook writes it to `extension/lib/version.js` (not tracked by git), so run the following once after cloning. After that it updates automatically on every commit, checkout and pull.
+The bottom of the web app's settings panel and the extension's settings page shows a link to this GitHub repository and the commit hash of the running code. A git hook writes it to `extension/lib/version.js` (not tracked by git), so run the following once after cloning. After that it updates automatically on every commit, checkout and pull.
 
 ```sh
 git config core.hooksPath .githooks && .githooks/write-version

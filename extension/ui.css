@@ -25,7 +25,8 @@ button,input,select { font:inherit; } button { color:inherit; cursor:pointer; }
 .progress { height:4px; border-radius:99px; background:var(--surface-2); overflow:hidden; margin-top:-4px; } .progress span { display:block; height:100%; width:0; background:var(--lime); transition:width .3s; }
 .status { margin:0; min-height:1em; font-size:12px; line-height:1.6; color:var(--text-secondary); white-space:pre-wrap; word-break:break-word; } .status:empty { display:none; } .status.ok { color:var(--lime-ink); } .status.warn { color:var(--warn); } .status.error { color:var(--error); }
 .popup-footer { display:flex; align-items:center; justify-content:space-between; padding-top:10px; border-top:1px solid var(--line); color:var(--muted); font-size:11px; }
-.commit-hash { margin:16px 0 0; color:var(--muted); font-family:"DM Mono",ui-monospace,monospace; font-size:10px; opacity:.6; }
+.repo-link { margin:16px 0 0; font-size:13px; } .repo-link a { color:var(--lime-ink); text-decoration:none; } .repo-link a:hover { text-decoration:underline; }
+.commit-hash { margin:6px 0 0; color:var(--muted); font-family:"DM Mono",ui-monospace,monospace; font-size:10px; opacity:.6; }
 .commit-hash:has(span:empty) { display:none; }
 
 /* Options */

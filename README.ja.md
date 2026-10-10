@@ -78,7 +78,7 @@ npx serve -l 8000
 
 ### コミットハッシュの表示
 
-Webアプリの設定パネルと拡張機能の設定画面の下部に、動いているコードのコミットハッシュが表示されます。ハッシュは git フックが `extension/lib/version.js`（git管理外）に書き出すので、クローン後に一度だけ次を実行してください。以降はコミット・チェックアウト・pull のたびに自動で更新されます。
+Webアプリの設定パネルと拡張機能の設定画面の下部に、この GitHub リポジトリへのリンクと、動いているコードのコミットハッシュが表示されます。ハッシュは git フックが `extension/lib/version.js`（git管理外）に書き出すので、クローン後に一度だけ次を実行してください。以降はコミット・チェックアウト・pull のたびに自動で更新されます。
 
 ```sh
 git config core.hooksPath .githooks && .githooks/write-version
