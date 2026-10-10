@@ -118,7 +118,7 @@ After updating the repository (pull, switching branches, etc.), press MyLingo's 
 
 ### About Gemini's free tier
 
-Gemini API's free tier limits requests per minute (e.g. 15 per minute for `gemini-3.5-flash-lite`). By default the extension keeps Gemini requests to 12 per minute, and when the limit is hit it waits and retries automatically. If you still see errors, lower "Max requests per minute" on the settings page. If you hit the daily limit, wait until the next day or switch to a paid plan.
+Gemini API's free tier limits requests per minute (e.g. 15 per minute for `gemini-3.5-flash-lite`). The extension does not limit requests by default; when the limit is hit, it waits as long as Gemini asks and retries automatically, so page translation may pause for a while. To keep requests under the limit and spread them out instead, set "Max requests per minute" on the settings page (e.g. 12); requests are then sent at even intervals. If you hit the daily limit, wait until the next day or switch to a paid plan.
 
 ### How it works
 

@@ -52,9 +52,9 @@ $('#settingsForm').addEventListener('submit', async (event) => {
   for (const [id, config] of Object.entries(configs)) {
     models[id] = $(`#model-${id}`).value.trim() || config.model;
     const rate = $(`#rate-${id}`).value.trim();
-    rateLimits[id] = rate === '' ? config.rateLimit ?? 0 : Math.max(0, Math.floor(Number(rate)) || 0);
+    rateLimits[id] = Math.max(0, Math.floor(Number(rate)) || 0);
   }
-  await chrome.storage.local.set({ models, rateLimits });
+  await chrome.storage.local.set({ models, rateLimits, rateLimitsVersion: 1 });
   if (!keysLocked()) await saveApiKeys(typedKeys());
   toast(t('options.saved'));
 });

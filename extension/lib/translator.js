@@ -25,19 +25,23 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const MAX_RETRIES = 3;
 const MAX_RETRY_WAIT_MS = 60000;
 
-// Sliding one-minute window per provider, so requests are spaced out before
-// they hit the service's per-minute quota (e.g. Gemini's free tier).
-const recentRequests = { openai: [], anthropic: [], gemini: [] };
+// Requests to each provider are spaced evenly (60s / perMinute apart) so they
+// stay under the service's per-minute quota (e.g. Gemini's free tier). A
+// sliding window would let a whole minute's worth go out at once and then
+// stall page translation for most of a minute.
+const nextSlot = { openai: 0, anthropic: 0, gemini: 0 };
 
 async function waitForRateLimit(provider, perMinute) {
-  if (!perMinute) return;
-  const log = recentRequests[provider];
-  for (;;) {
-    const now = Date.now();
-    while (log.length && now - log[0] >= 60000) log.shift();
-    if (log.length < perMinute) { log.push(now); return; }
-    await sleep(60000 - (now - log[0]) + 50);
-  }
+  const now = Date.now();
+  const slot = Math.max(now, nextSlot[provider]);
+  if (perMinute) nextSlot[provider] = slot + 60000 / perMinute;
+  if (slot > now) await sleep(slot - now);
+}
+
+// After a 429, holds back every request to that provider, not just the one
+// that failed, so the others do not keep running into the limit meanwhile.
+function pauseProvider(provider, ms) {
+  nextSlot[provider] = Math.max(nextSlot[provider], Date.now() + ms);
 }
 
 // Gemini reports how long to wait in a RetryInfo detail ("23s");
@@ -95,7 +99,7 @@ async function callModel(settings, system, user, maxTokens) {
       if (!(error instanceof RateLimitError) || attempt >= MAX_RETRIES) throw error;
       const wait = error.retryAfterMs ?? 5000 * 2 ** attempt;
       if (wait > MAX_RETRY_WAIT_MS) throw error;
-      await sleep(wait);
+      pauseProvider(settings.provider, wait);
     }
   }
 }
