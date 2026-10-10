@@ -24,6 +24,7 @@ MyLingo は ChatGPT / Claude / Gemini を切り替えて使う翻訳ツールで
 | `extension/lib/i18n.js` | UIの文言（英語・日本語）、表示言語の判定、EN / JA スイッチ。**Webアプリと共用** |
 | `extension/lib/vault.js` | APIキーの暗号化と設定パネル。**Webアプリと共用** |
 | `extension/lib/languages.js` | 翻訳先の言語一覧。**Webアプリと共用** |
+| `extension/icons/` | `icon.svg` がアイコン・ロゴの元データ（Webアプリのファビコンとヘッダーも参照する。**Webアプリと共用**）。PNG はこの SVG から書き出す |
 | `extension/_locales/` | manifest の説明文など（Chrome の言語に従う） |
 | `extension/lib/version.js` | git フックが生成するコミットハッシュ。git管理外で、なくても動く |
 | `scripts/package-extension.sh` | ストアにアップロードする zip（`dist/`）を作る。`lib/version.js` を書き込んでから固める |

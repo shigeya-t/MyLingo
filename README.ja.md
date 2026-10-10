@@ -35,7 +35,7 @@ Webアプリは `index.html` 1つだけでは動きません。リポジトリ�
 | `extension/lib/i18n.js` | ○ | 画面の文言（日本語・英語。拡張機能と共用） |
 | `extension/lib/vault.js` | ○ | APIキーの暗号化（拡張機能と共用） |
 | `extension/lib/languages.js` | ○ | 翻訳先の言語一覧（拡張機能と共用） |
-| `assets/favicon.svg` | | タブのアイコン |
+| `extension/icons/icon.svg` | | タブのアイコンとロゴ（拡張機能と共用） |
 | `extension/lib/version.js` | | コミットハッシュの表示（git管理外。なくても動きます） |
 
 フォントは Google Fonts から読み込みます。
@@ -156,7 +156,7 @@ Gemini APIの無料枠には1分あたりのリクエスト数の上限（例: `
 ├── README.md    # 英語版の README
 ├── README.ja.md # 日本語版の README（このファイル）
 ├── AGENTS.md    # AIコーディングエージェント向けの開発メモ
-├── assets/      # アイコン・README 用の画像
+├── assets/      # README 用の画像
 ├── .githooks/   # コミットハッシュを version.js に書き出すフック
 ├── docs/privacy/ # プライバシーポリシー（GitHub Pages で公開）
 ├── store/       # Chrome ウェブストアの掲載情報・画像・公開手順
@@ -177,5 +177,5 @@ Gemini APIの無料枠には1分あたりのリクエスト数の上限（例: `
     │   ├── languages.js   # 翻訳先の言語一覧（Webアプリと共用）
     │   └── version.js     # コミットハッシュ（git管理外・自動生成）
     ├── _locales/        # manifest の説明文（英語・日本語）
-    └── icons/
+    └── icons/           # icon.svg（Webアプリのタブのアイコン・ロゴと共用）と PNG
 ```

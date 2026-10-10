@@ -35,7 +35,7 @@ The web app does not work with `index.html` alone. Deploy the whole repository, 
 | `extension/lib/i18n.js` | ✓ | UI text in English and Japanese (shared with the extension) |
 | `extension/lib/vault.js` | ✓ | API key encryption (shared with the extension) |
 | `extension/lib/languages.js` | ✓ | Target languages (shared with the extension) |
-| `assets/favicon.svg` | | Tab icon |
+| `extension/icons/icon.svg` | | Tab icon and logo (shared with the extension) |
 | `extension/lib/version.js` | | Shows the commit hash (not tracked by git; optional) |
 
 Fonts are loaded from Google Fonts.
@@ -156,7 +156,7 @@ Encryption protects against the browser's stored data being read or copied. It d
 ├── README.md    # README in English (this file)
 ├── README.ja.md # README in Japanese
 ├── AGENTS.md    # Development notes for AI coding agents
-├── assets/      # Icons and images for the README
+├── assets/      # Images for the README
 ├── .githooks/   # Hooks that write the commit hash to version.js
 ├── docs/privacy/ # Privacy policy (published with GitHub Pages)
 ├── store/       # Chrome Web Store listing text, images and publishing steps
@@ -177,5 +177,5 @@ Encryption protects against the browser's stored data being read or copied. It d
     │   ├── languages.js   # Target languages (shared with the web app)
     │   └── version.js     # Commit hash (not tracked by git; generated)
     ├── _locales/        # Manifest descriptions (English and Japanese)
-    └── icons/
+    └── icons/           # icon.svg (also the web app's tab icon and logo) and PNGs
 ```
