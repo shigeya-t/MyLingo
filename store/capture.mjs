@@ -213,7 +213,7 @@ async function main() {
     await composer.screenshot({ path: join(out, file), omitBackground: transparent });
   };
   const frame = (src, extra = '') => `<div class="window ${extra}"><div class="chrome"><i></i><i></i><i></i><span class="url"></span></div><img src="${src}"></div>`;
-  const brand = `<span class="mark"><i></i><i></i><i></i></span>MyLingo`;
+  const brand = `<img class="mark" src="${icon}" alt="">MyLingo`;
   const chips = '<div class="chips"><span><b class="o">✦</b>ChatGPT</span><span><b class="a">A</b>Claude</span><span><b class="g">✧</b>Gemini</span></div>';
 
   await render(128, 128, `<img src="${icon}" style="width:96px;height:96px;margin:16px;display:block">`, 'store-icon-128.png', true);
@@ -246,9 +246,7 @@ const css = `
   .slide, .tile, .marquee { width:100%; height:100%; background:radial-gradient(1200px 600px at 85% 110%, #2b3a1a 0%, transparent 60%), #111516; position:relative; overflow:hidden; }
   [lang="ja"] { font-family:"Noto Sans JP", Manrope, sans-serif; }
   .brand { display:flex; align-items:center; gap:10px; font-weight:800; font-size:22px; } .brand.big { font-size:34px; gap:12px; }
-  .mark { display:flex; gap:3px; align-items:flex-end; height:22px; } .mark i { width:6px; border-radius:4px; background:#c8f859; display:block; }
-  .mark i:nth-child(1){height:11px}.mark i:nth-child(2){height:22px}.mark i:nth-child(3){height:16px}
-  .big .mark { height:32px; gap:4px; } .big .mark i { width:9px; } .big .mark i:nth-child(1){height:16px}.big .mark i:nth-child(2){height:32px}.big .mark i:nth-child(3){height:23px}
+  .mark { width:32px; height:32px; border-radius:8px; box-shadow:0 0 0 1px #2a3233; } .big .mark { width:48px; height:48px; border-radius:11px; }
   h1 { margin:0; font-weight:800; letter-spacing:-.01em; } em { font-style:normal; color:#c8f859; }
   .caption p, .tile p { color:#cbd1cd; margin:0; }
   .chips { display:flex; gap:10px; flex-wrap:wrap; } .chips span { display:flex; align-items:center; gap:8px; padding:8px 14px 8px 8px; border:1px solid #2a3233; border-radius:99px; background:#171c1d; font-weight:700; font-size:15px; }
