@@ -67,6 +67,9 @@ async function retranslate() {
   const settings = await loadSettings();
   const target = targetLanguageName(settings);
   if (!target || (target === pageState.target && settings.mode === pageState.mode) || settings.locked) return;
+  // Restoring first would throw away the translation on screen for a request
+  // that is bound to fail.
+  if (!settings.apiKeys?.[settings.provider]) { showStatus(missingKeyMessage(settings), 'warn'); return; }
   try {
     await chrome.tabs.sendMessage(tabId, { type: 'restorePage' });
     renderPage(await chrome.tabs.sendMessage(tabId, { type: 'translatePage' }));
