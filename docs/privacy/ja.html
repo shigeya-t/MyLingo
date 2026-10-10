@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MyLingo プライバシーポリシー</title>
+    <link rel="alternate" hreflang="en" href="./" />
+    <link rel="stylesheet" href="privacy.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="brand">MyLingo</span>
+        <nav><a href="./" lang="en">English</a> | 日本語</nav>
+      </header>
+
+      <h1>プライバシーポリシー</h1>
+      <p class="updated">最終更新日: 2026年10月10日</p>
+
+      <p>このポリシーは、Chrome拡張機能「MyLingo Page Translator」と MyLingo のWebアプリが利用者のデータをどう扱うかを説明するものです。MyLingo は独自のサーバーを持たず、開発者が利用者のデータを受け取ったり、収集・保存したりすることはありません。</p>
+
+      <div class="summary">
+        <ul>
+          <li>文章は、翻訳を指示したときにだけ、利用者が選んだAIサービス（OpenAI・Anthropic・Google）へ送信されます。</li>
+          <li>APIキーと設定はブラウザ内にだけ保存されます。APIキーはパスキーまたはパスフレーズで暗号化できます。</li>
+          <li>アクセス解析・トラッキング・広告はありません。データを販売したり、ほかの第三者へ渡したりすることもありません。</li>
+        </ul>
+      </div>
+
+      <h2>扱うデータ</h2>
+      <ul>
+        <li><strong>Webサイトのコンテンツ</strong>: 翻訳するページの文章、または選択して右クリックメニューから翻訳する文章。翻訳を始めたとき（ツールバーのポップアップ、右クリックメニュー、キーボードショートカット）にだけ読み取ります。</li>
+        <li><strong>APIキー</strong>: 利用者が入力した OpenAI・Anthropic・Google Gemini のAPIキー。</li>
+        <li><strong>設定</strong>: 選択中のサービス、モデル名、翻訳先の言語、翻訳モード、リクエスト数の上限、表示言語。</li>
+      </ul>
+      <p>閲覧履歴、個人情報、位置情報などそのほかのデータは収集しません。</p>
+
+      <h2>データの送信先</h2>
+      <p>翻訳するとき、翻訳する文章は利用者自身のAPIキーを使って、ブラウザから選択したサービスへ直接送信されます。</p>
+      <ul>
+        <li>ChatGPT: OpenAI（<code>api.openai.com</code>）— <a href="https://openai.com/policies/privacy-policy/">OpenAI のプライバシーポリシー</a></li>
+        <li>Claude: Anthropic（<code>api.anthropic.com</code>）— <a href="https://www.anthropic.com/legal/privacy">Anthropic のプライバシーポリシー</a></li>
+        <li>Gemini: Google（<code>generativelanguage.googleapis.com</code>）— <a href="https://policies.google.com/privacy?hl=ja">Google のプライバシーポリシー</a>、<a href="https://ai.google.dev/gemini-api/terms">Gemini API 利用規約</a></li>
+      </ul>
+      <p>送信した文章がそのサービスでどう扱われるか（保存期間や学習への利用など）は、各サービスの規約と利用者のアカウント設定によります。機密性の高い文章を翻訳する前にご確認ください。MyLingo がこれ以外の送信先へデータを送ることはありません。</p>
+
+      <h2>保存</h2>
+      <ul>
+        <li>拡張機能は、APIキーと設定を端末内の <code>chrome.storage.local</code> に保存します。Google アカウントには同期されません。</li>
+        <li>APIキーの暗号化を有効にすると、キーは暗号化された形（AES-GCM）でだけ保存されます。ロックを解除したあと、復号したキーはブラウザを閉じるまでメモリ上（<code>chrome.storage.session</code>）に保持されます。</li>
+        <li>翻訳結果は保存しません。ページ上に表示し、原文に戻したときやページを離れたときに破棄されます。</li>
+        <li>Webアプリは、同じ種類の設定をブラウザの <code>localStorage</code> に保存します。</li>
+      </ul>
+
+      <h2>権限</h2>
+      <ul>
+        <li><code>activeTab</code>・<code>scripting</code>: 翻訳するタブの文章を読み取り、翻訳文に差し替えるため。そのタブで翻訳を指示したときにだけ使います。</li>
+        <li><code>storage</code>: APIキーと設定を端末内に保存するため。</li>
+        <li><code>contextMenus</code>: 右クリックメニューに「MyLingo で翻訳」を追加するため。</li>
+        <li><code>api.openai.com</code>・<code>api.anthropic.com</code>・<code>generativelanguage.googleapis.com</code> へのアクセス: 選択したサービスへ翻訳のリクエストを送るため。</li>
+      </ul>
+
+      <h2>データの利用目的</h2>
+      <p>データは、MyLingo の唯一の目的である翻訳のためにだけ使います。販売、選択したAIサービス以外の第三者への提供、広告への利用、信用力の判断や融資目的での利用は行いません。Chrome の API から得た情報の利用は、限定利用（Limited Use）の要件を含む <a href="https://developer.chrome.com/docs/webstore/program-policies/policies?hl=ja">Chrome ウェブストアのユーザーデータに関するポリシー</a>に従います。</p>
+
+      <h2>データの削除</h2>
+      <p>拡張機能の設定画面でAPIキーを消すか、<code>chrome://extensions</code> から拡張機能を削除してください。削除すると、拡張機能が保存したデータはすべて消去されます。Webアプリの場合は、ブラウザでそのアドレスのサイトデータを削除してください。AIサービス側に残るデータの削除は、各サービスのアカウント設定から行ってください。</p>
+
+      <h2>子どもについて</h2>
+      <p>MyLingo は子ども向けのサービスではなく、子どもの情報を意図して収集することはありません。</p>
+
+      <h2>変更</h2>
+      <p>このポリシーを変更する場合は、日付を更新してこのページに掲載します。</p>
+
+      <h2>お問い合わせ</h2>
+      <p>このポリシーについてのご質問は、<a href="https://github.com/shigeya-t/MyLingo/issues">github.com/shigeya-t/MyLingo/issues</a> で Issue を作成してください。</p>
+    </main>
+  </body>
+</html>

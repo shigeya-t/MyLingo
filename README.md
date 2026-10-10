@@ -35,7 +35,7 @@ The web app does not work with `index.html` alone. Deploy the whole repository, 
 | `extension/lib/i18n.js` | ✓ | UI text in English and Japanese (shared with the extension) |
 | `extension/lib/vault.js` | ✓ | API key encryption (shared with the extension) |
 | `extension/lib/languages.js` | ✓ | Target languages (shared with the extension) |
-| `assets/favicon.svg` | | Tab icon |
+| `extension/icons/icon.svg` | | Tab icon and logo (shared with the extension) |
 | `extension/lib/version.js` | | Shows the commit hash (not tracked by git; optional) |
 
 Fonts are loaded from Google Fonts.
@@ -78,7 +78,7 @@ The UI is shown in Japanese when the browser's language is Japanese and in Engli
 
 ### Showing the commit hash
 
-The bottom of the web app's settings panel and the extension's settings page shows the commit hash of the running code. A git hook writes it to `extension/lib/version.js` (not tracked by git), so run the following once after cloning. After that it updates automatically on every commit, checkout and pull.
+The bottom of the web app's settings panel and the extension's settings page shows a link to this GitHub repository and the commit hash of the running code. A git hook writes it to `extension/lib/version.js` (not tracked by git), so run the following once after cloning. After that it updates automatically on every commit, checkout and pull.
 
 ```sh
 git config core.hooksPath .githooks && .githooks/write-version
@@ -111,6 +111,8 @@ The `extension/` folder contains a Chrome extension that translates the whole pa
 3. Open the settings page from the MyLingo toolbar icon → gear, enter the API key (and model name if needed) for the services you use, and save.
 
 The extension stores its settings in `chrome.storage.local`, so you need to enter them separately from the web app.
+
+The extension is being registered on the Chrome Web Store as an unlisted item (see [store/README.md](store/README.md), in Japanese, for the steps). If you install it from the store, skip steps 1 and 2. The privacy policy is in [docs/privacy/](docs/privacy/index.html) (published at <https://shigeya-t.github.io/MyLingo/privacy/>).
 
 After updating the repository (pull, switching branches, etc.), press MyLingo's reload button (↻) in `chrome://extensions`. The popup and settings page load the new files each time they open, but the background service worker that does the translating keeps running the old code until it is reloaded, and the mismatch can cause errors. Reloading also locks encrypted API keys again.
 
@@ -154,8 +156,11 @@ Encryption protects against the browser's stored data being read or copied. It d
 ├── README.md    # README in English (this file)
 ├── README.ja.md # README in Japanese
 ├── AGENTS.md    # Development notes for AI coding agents
-├── assets/      # Icons and images for the README
+├── assets/      # Images for the README
 ├── .githooks/   # Hooks that write the commit hash to version.js
+├── docs/privacy/ # Privacy policy (published with GitHub Pages)
+├── store/       # Chrome Web Store listing text, images and publishing steps
+├── scripts/     # package-extension.sh: builds the zip to upload to the store
 └── extension/   # Chrome extension (page translation)
     ├── manifest.json
     ├── background.js    # API calls, context menu, shortcut
@@ -172,5 +177,5 @@ Encryption protects against the browser's stored data being read or copied. It d
     │   ├── languages.js   # Target languages (shared with the web app)
     │   └── version.js     # Commit hash (not tracked by git; generated)
     ├── _locales/        # Manifest descriptions (English and Japanese)
-    └── icons/
+    └── icons/           # icon.svg (also the web app's tab icon and logo) and PNGs
 ```

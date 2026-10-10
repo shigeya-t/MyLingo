@@ -35,7 +35,7 @@ Webアプリは `index.html` 1つだけでは動きません。リポジトリ�
 | `extension/lib/i18n.js` | ○ | 画面の文言（日本語・英語。拡張機能と共用） |
 | `extension/lib/vault.js` | ○ | APIキーの暗号化（拡張機能と共用） |
 | `extension/lib/languages.js` | ○ | 翻訳先の言語一覧（拡張機能と共用） |
-| `assets/favicon.svg` | | タブのアイコン |
+| `extension/icons/icon.svg` | | タブのアイコンとロゴ（拡張機能と共用） |
 | `extension/lib/version.js` | | コミットハッシュの表示（git管理外。なくても動きます） |
 
 フォントは Google Fonts から読み込みます。
@@ -78,7 +78,7 @@ npx serve -l 8000
 
 ### コミットハッシュの表示
 
-Webアプリの設定パネルと拡張機能の設定画面の下部に、動いているコードのコミットハッシュが表示されます。ハッシュは git フックが `extension/lib/version.js`（git管理外）に書き出すので、クローン後に一度だけ次を実行してください。以降はコミット・チェックアウト・pull のたびに自動で更新されます。
+Webアプリの設定パネルと拡張機能の設定画面の下部に、この GitHub リポジトリへのリンクと、動いているコードのコミットハッシュが表示されます。ハッシュは git フックが `extension/lib/version.js`（git管理外）に書き出すので、クローン後に一度だけ次を実行してください。以降はコミット・チェックアウト・pull のたびに自動で更新されます。
 
 ```sh
 git config core.hooksPath .githooks && .githooks/write-version
@@ -111,6 +111,8 @@ git config core.hooksPath .githooks && .githooks/write-version
 3. ツールバーの MyLingo アイコン → 歯車から設定画面を開き、使うサービスのAPIキー（必要ならモデル名も）を入力して保存します。
 
 拡張機能の設定は `chrome.storage.local` に保存されるため、Webアプリとは別に入力が必要です。
+
+Chrome ウェブストアには限定公開で登録する予定です（手順は [store/README.md](store/README.md)）。ストアからインストールした場合、上の1・2は不要です。プライバシーポリシーは [docs/privacy/](docs/privacy/ja.html)（公開URL: <https://shigeya-t.github.io/MyLingo/privacy/ja.html>）にあります。
 
 リポジトリを更新（pull・ブランチの切り替えなど）したら、`chrome://extensions` で MyLingo の再読み込みボタン（↻）を押してください。ポップアップや設定画面は開くたびに新しいファイルを読み込みますが、翻訳を行うバックグラウンド（Service Worker）は再読み込みするまで古いコードのまま動くため、食い違いでエラーになることがあります。再読み込みするとAPIキーの暗号化のロックも掛かり直します。
 
@@ -154,8 +156,11 @@ Gemini APIの無料枠には1分あたりのリクエスト数の上限（例: `
 ├── README.md    # 英語版の README
 ├── README.ja.md # 日本語版の README（このファイル）
 ├── AGENTS.md    # AIコーディングエージェント向けの開発メモ
-├── assets/      # アイコン・README 用の画像
+├── assets/      # README 用の画像
 ├── .githooks/   # コミットハッシュを version.js に書き出すフック
+├── docs/privacy/ # プライバシーポリシー（GitHub Pages で公開）
+├── store/       # Chrome ウェブストアの掲載情報・画像・公開手順
+├── scripts/     # package-extension.sh: ストアにアップロードする zip を作る
 └── extension/   # Chrome拡張機能（Webページ翻訳）
     ├── manifest.json
     ├── background.js    # API呼び出し・右クリックメニュー・ショートカット
@@ -172,5 +177,5 @@ Gemini APIの無料枠には1分あたりのリクエスト数の上限（例: `
     │   ├── languages.js   # 翻訳先の言語一覧（Webアプリと共用）
     │   └── version.js     # コミットハッシュ（git管理外・自動生成）
     ├── _locales/        # manifest の説明文（英語・日本語）
-    └── icons/
+    └── icons/           # icon.svg（Webアプリのタブのアイコン・ロゴと共用）と PNG
 ```
