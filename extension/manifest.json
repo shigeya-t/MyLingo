@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "MyLingo Page Translator",
   "short_name": "MyLingo",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "__MSG_description__",
   "default_locale": "en",
   "icons": {
