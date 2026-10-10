@@ -112,7 +112,7 @@ The `extension/` folder contains a Chrome extension that translates the whole pa
 
 The extension stores its settings in `chrome.storage.local`, so you need to enter them separately from the web app.
 
-The extension is being registered on the Chrome Web Store as an unlisted item (see [store/README.md](store/README.md), in Japanese, for the steps). If you install it from the store, skip steps 1 and 2. The privacy policy is in [docs/privacy/](docs/privacy/index.html) (published at <https://shigeya-t.github.io/MyLingo/privacy/>).
+The extension is being registered on the Chrome Web Store as a public item (see [store/README.md](store/README.md), in Japanese, for the steps). If you install it from the store, skip steps 1 and 2. The privacy policy is in [docs/privacy/](docs/privacy/index.html) (published at <https://shigeya-t.github.io/MyLingo/privacy/>).
 
 After updating the repository (pull, switching branches, etc.), press MyLingo's reload button (↻) in `chrome://extensions`. The popup and settings page load the new files each time they open, but the background service worker that does the translating keeps running the old code until it is reloaded, and the mismatch can cause errors. Reloading also locks encrypted API keys again.
 

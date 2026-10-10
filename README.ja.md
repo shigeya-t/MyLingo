@@ -112,7 +112,7 @@ git config core.hooksPath .githooks && .githooks/write-version
 
 拡張機能の設定は `chrome.storage.local` に保存されるため、Webアプリとは別に入力が必要です。
 
-Chrome ウェブストアには限定公開で登録する予定です（手順は [store/README.md](store/README.md)）。ストアからインストールした場合、上の1・2は不要です。プライバシーポリシーは [docs/privacy/](docs/privacy/ja.html)（公開URL: <https://shigeya-t.github.io/MyLingo/privacy/ja.html>）にあります。
+Chrome ウェブストアには公開で登録する予定です（手順は [store/README.md](store/README.md)）。ストアからインストールした場合、上の1・2は不要です。プライバシーポリシーは [docs/privacy/](docs/privacy/ja.html)（公開URL: <https://shigeya-t.github.io/MyLingo/privacy/ja.html>）にあります。
 
 リポジトリを更新（pull・ブランチの切り替えなど）したら、`chrome://extensions` で MyLingo の再読み込みボタン（↻）を押してください。ポップアップや設定画面は開くたびに新しいファイルを読み込みますが、翻訳を行うバックグラウンド（Service Worker）は再読み込みするまで古いコードのまま動くため、食い違いでエラーになることがあります。再読み込みするとAPIキーの暗号化のロックも掛かり直します。
 

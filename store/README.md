@@ -1,6 +1,6 @@
 # Chrome ウェブストアでの公開手順
 
-MyLingo の拡張機能を Chrome ウェブストアに**限定公開（Unlisted）**で登録するための手順です。掲載欄に貼り付けるテキストは [listing.md](listing.md) にまとめてあります。
+MyLingo の拡張機能を Chrome ウェブストアに**公開（Public）**で登録するための手順です。掲載欄に貼り付けるテキストは [listing.md](listing.md) にまとめてあります。
 
 | ファイル | 内容 |
 | --- | --- |
@@ -42,12 +42,12 @@ scripts/package-extension.sh
 1. **New item** → `dist/mylingo-extension-1.0.0.zip` をアップロードする。
 2. **Store listing** タブ: [listing.md](listing.md) の「ストアの掲載情報」を英語で入力し、画像を `images/` からアップロードする。右上の言語メニューで **Japanese** を追加し、日本語の説明文と `ja-` で始まる画像を入れる。
 3. **Privacy** タブ: listing.md の「プライバシーへの取り組み」をそのまま入力する（単一用途、権限ごとの理由、リモートコードなし、データ使用、プライバシーポリシーのURL）。
-4. **Distribution** タブ: **Free**、**Visibility: Unlisted**、**All regions**。
+4. **Distribution** タブ: **Free**、**Visibility: Public**、**All regions**。
 5. （任意）**Test instructions** に listing.md の「審査担当者へのメモ」を貼る。
 6. **Submit for review** を押す。審査は通常数日〜1週間程度です。
    - 提出時の画面で、承認後すぐに自動で公開するか、承認後に自分で公開するかを選べます。
 
-限定公開のあいだは、ストアのURL（`https://chromewebstore.google.com/detail/<ID>`）を知っている人だけがインストールできます。検索には出ません。後で **Distribution → Visibility** を **Public** に変えれば一般公開になります。
+公開（Public）にすると、ストアの検索に表示され、誰でもインストールできます。すでに限定公開（Unlisted）で登録済みの場合は、**Distribution → Visibility** を **Public** に変えて保存し、**Submit for review** で提出します。
 
 ## 5. 公開後
 

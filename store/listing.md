@@ -167,7 +167,7 @@ https://shigeya-t.github.io/MyLingo/privacy/
 | 項目 | 値 |
 | --- | --- |
 | Payments | Free of charge |
-| Visibility | **Unlisted**（限定公開: URLを知っている人だけがインストールできる） |
+| Visibility | **Public**（公開: ストアの検索に表示され、誰でもインストールできる） |
 | Regions | All regions |
 
 ## 審査担当者へのメモ（Test instructions、任意）
